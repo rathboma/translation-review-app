@@ -6,6 +6,7 @@ import { Lint } from "../../vendor/translate/lint.ts";
 import { normalize } from "../../vendor/translate/text.ts";
 import type { AnnotatedPage, IssueRef, ManifestInfo, Note, NoteProblem, Reviewer, Segment, SegmentKind, Source } from "../../shared/types.ts";
 import { LIMITS } from "../../shared/types.ts";
+import { parseNote, parseReviewer } from "../../shared/validate.ts";
 import * as api from "./api.ts";
 import { load, save } from "./storage.ts";
 
@@ -42,8 +43,24 @@ export interface Editing {
   preselect: { text: string; hint: number } | null;
 }
 
+// What was kept in the browser, checked as the server checks a submission: a
+// corrupt or hand-edited entry is dropped, not a reason for the app not to start.
+function savedReviewer(): Reviewer | null {
+  const parsed = parseReviewer(load<unknown>("reviewer", null));
+  return parsed.ok ? parsed.value : null;
+}
+
+function savedNotes(): Note[] {
+  const saved = load<unknown>("notes", []);
+  if (!Array.isArray(saved)) return [];
+  return saved.flatMap((raw) => {
+    const { note } = parseNote(raw);
+    return note ? [note] : [];
+  });
+}
+
 export const state = reactive({
-  reviewer: load<Reviewer | null>("reviewer", null),
+  reviewer: savedReviewer(),
   manifest: null as ManifestInfo | null,
   manifestError: "",
   lang: "",
@@ -51,7 +68,7 @@ export const state = reactive({
   page: null as AnnotatedPage | null,
   loading: false,
   pageError: null as { message: string; code?: string } | null,
-  notes: load<Note[]>("notes", []),
+  notes: savedNotes(),
   // What the server said about notes it refused (or warned about), by note id.
   problems: {} as Record<string, NoteProblem>,
   editing: null as Editing | null,

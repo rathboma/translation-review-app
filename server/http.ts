@@ -9,12 +9,32 @@ export function json(data: unknown, status = 200, headers: Record<string, string
 export const fail = (status: number, error: string, extra: Record<string, unknown> = {}, headers: Record<string, string> = {}) =>
   json({ ok: false, error, ...extra }, status, headers);
 
-// The request's body as text, refusing more than `max` bytes.
+// The request's body as text, or null if it is over `max` bytes. It is read as
+// a stream and given up on at the limit: a body without a content-length (chunked)
+// must not be held in memory before it is checked.
 export async function readText(request: Request, max: number): Promise<string | null> {
-  const length = Number(request.headers.get("content-length") ?? 0);
-  if (length > max) return null;
-  const text = await request.text();
-  return new TextEncoder().encode(text).length > max ? null : text;
+  if (Number(request.headers.get("content-length") ?? 0) > max) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 // Runs `fn` over `items`, `limit` at a time, keeping their order.

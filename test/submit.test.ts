@@ -270,3 +270,19 @@ test("a note too big to file is refused by id", async () => {
   assert.equal((await json(response)).notes[0].id, "big");
   assert.equal(w.github.calls.length, 0);
 });
+
+test("a body is read as a stream and refused at the limit, with or without a content-length", async () => {
+  const chunk = new TextEncoder().encode("x".repeat(100_000));
+  let sent = 0;
+  const stream = new ReadableStream({
+    pull(controller) {
+      // Far more than allowed: the reader must stop long before it is all read.
+      if (sent++ < 100) controller.enqueue(chunk);
+      else controller.close();
+    },
+  });
+  const request = new Request("https://translate.test/api/submit", { method: "POST", body: stream, duplex: "half" } as RequestInit);
+  const response = await submitHandler(request, env(), { now: () => NOW });
+  assert.equal(response.status, 413);
+  assert.ok(sent < 40, `read ${sent} chunks of 100`);
+});
