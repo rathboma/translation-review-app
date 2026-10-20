@@ -1,0 +1,86 @@
+# Tests every push and pull request; deploys main to production and each pull
+# request to its own preview (a comment on the pull request links to it).
+# Needs the secrets CLOUDFLARE_API_TOKEN (Pages: edit) and CLOUDFLARE_ACCOUNT_ID.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - name: Vendored lint is as it was synced
+        run: yarn check:vendor
+      - run: yarn typecheck
+      - run: yarn test
+      - run: npx playwright install --with-deps chromium
+      - run: yarn test:e2e
+      - name: Keep the browser traces of a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+
+  deploy:
+    needs: test
+    # Pull requests from forks have no secrets.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
+      # A branch name becomes a url: keep to the characters Pages allows.
+      - id: branch
+        env:
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: echo "name=$(echo "$HEAD_REF" | tr -c 'A-Za-z0-9_-' '-')" >> "$GITHUB_OUTPUT"
+      - id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.151.3"
+          command: pages deploy dist --project-name=translation-review --branch=${{ steps.branch.outputs.name }}
+      - name: Link the preview on the pull request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url || steps.deploy.outputs.deployment-url }}
+        with:
+          script: |
+            const marker = "<!-- translation-review-preview -->";
+            const body = `${marker}\nPreview: ${process.env.PREVIEW_URL}\n\nIt files issues on the repository set for the Preview environment (see "Setup, once" in the README).`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.startsWith(marker));
+            if (existing) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });

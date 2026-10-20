@@ -1,0 +1,32 @@
+# The submit Function lints with the translation Worker's lint, vendored from
+# beekeeper-studio/web (vendor/translate). When the Worker's lint changes, this
+# goes red: run `yarn sync:translate` and commit.
+#
+# Until the Worker's pull request (web#599) is merged there is no lint.ts on
+# master: run this by hand with that pull request's branch as the ref.
+name: Vendored lint
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Ref of beekeeper-studio/web to compare with
+        default: master
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - env:
+          REF: ${{ inputs.ref || 'master' }}
+        run: node scripts/sync-translate.mjs --check --upstream --ref "$REF"

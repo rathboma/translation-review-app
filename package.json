@@ -4,9 +4,8 @@
   "type": "module",
   "description": "translate.beekeeperstudio.io: translators review the machine-translated copies of beekeeperstudio.io and file their notes as GitHub issues.",
   "scripts": {
-    "dev": "wrangler pages dev --proxy 5173 -- vite --port 5173 --strictPort",
+    "dev": "node scripts/dev.mjs",
     "build": "vue-tsc --noEmit -p tsconfig.app.json && vite build",
-    "preview": "vite build && wrangler pages dev dist",
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.e2e.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
