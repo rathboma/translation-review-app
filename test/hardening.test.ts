@@ -56,8 +56,8 @@ test("a name in the title is cut by characters, not UTF-16 halves, and carries n
 });
 
 test("quote() escapes the non-characters a YAML parser other than js-yaml rejects", () => {
-  assert.equal(quote("a￾b￿c"), '"a\\ufffeb\\uffffc"');
-  assert.equal(machineNotes(renderIssue(issueInput([report({ new: "Paga￾￿ una vez" })])).body).notes[0].new, "Paga￾￿ una vez");
+  assert.equal(quote("a\ufffeb\uffffc"), '"a\\ufffeb\\uffffc"');
+  assert.equal(machineNotes(renderIssue(issueInput([report({ new: "Paga\ufffe\uffff una vez" })])).body).notes[0].new, "Paga\ufffe\uffff una vez");
 });
 
 // ---- the language is a language of the manifest, not a property of an object -----
@@ -96,7 +96,7 @@ test("one submission cannot ask for a hundred issues: the notes are limited in t
 });
 
 test("a translation that is only invisible characters or punctuation has no words", () => {
-  for (const empty of ["​", "­", "⁠​", "...", " - ", "<b>​</b>", "&nbsp;"]) assert.equal(hasWords(empty), false, JSON.stringify(empty));
+  for (const empty of ["\u200b", "­", "⁠\u200b", "...", " - ", "<b>\u200b</b>", "&nbsp;"]) assert.equal(hasWords(empty), false, JSON.stringify(empty));
   for (const real of ["a", "日本", "1", "👍", "<b>x</b>"]) assert.equal(hasWords(real), true, real);
 });
 
