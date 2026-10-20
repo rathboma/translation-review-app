@@ -1,0 +1,54 @@
+{
+ "lang": "es",
+ "path": "/",
+ "fingerprint": "9f52d8d90989c964801a470e158eb63f",
+ "english": "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>The SQL Editor You Will Love</title><meta name=\"description\" content=\"A modern SQL editor.\"><link rel=\"stylesheet\" href=\"/assets/css/main-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.css\"></head>\n<body><header data-i18n-scope=\"header\"><a href=\"/get\" data-seg=\"s1\">Download</a></header>\n<main><h1 data-seg=\"s2\">The SQL Editor You Will Love</h1><p data-seg=\"s3\">Fast, simple and free to start.</p></main>\n<footer data-i18n-scope=\"footer\"><a href=\"/blog/\" data-seg=\"s4\">Blog</a></footer></body></html>",
+ "translated": "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>El editor SQL que vas a querer</title><meta name=\"description\" content=\"Un editor SQL moderno.\"><link rel=\"stylesheet\" href=\"/assets/css/main-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.css\"></head>\n<body><header data-i18n-scope=\"header\"><a href=\"/get\" data-seg=\"s1\">Descargar</a></header>\n<main><h1 data-seg=\"s2\">El editor SQL que vas a querer</h1><p data-seg=\"s3\">Rápido, simple y gratis para empezar.</p></main>\n<footer data-i18n-scope=\"footer\"><a href=\"/blog/\" data-seg=\"s4\">Blog</a></footer></body></html>",
+ "segments": [
+  {
+   "id": "s1",
+   "key": "Download",
+   "kind": "html",
+   "where": "a",
+   "scope": "header",
+   "source": "common",
+   "translation": "Descargar"
+  },
+  {
+   "id": "s2",
+   "key": "The SQL Editor You Will Love",
+   "kind": "html",
+   "where": "h1",
+   "scope": null,
+   "source": "generated",
+   "translation": "El editor SQL que vas a querer"
+  },
+  {
+   "id": "s3",
+   "key": "Fast, simple and free to start.",
+   "kind": "html",
+   "where": "p, under \"The SQL Editor You Will Love\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Rápido, simple y gratis para empezar."
+  },
+  {
+   "id": "s4",
+   "key": "Blog",
+   "kind": "html",
+   "where": "a, under \"The SQL Editor You Will Love\"",
+   "scope": "footer",
+   "source": "common",
+   "translation": "Blog"
+  },
+  {
+   "id": "s5",
+   "key": "A modern SQL editor.",
+   "kind": "head",
+   "where": "meta description",
+   "scope": null,
+   "source": "generated",
+   "translation": "Un editor SQL moderno."
+  }
+ ]
+}

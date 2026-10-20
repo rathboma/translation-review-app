@@ -1,0 +1,77 @@
+{
+ "site": "https://www.beekeeperstudio.io",
+ "english": {
+  "lang": "en",
+  "locale": "en_US",
+  "hreflang": [
+   "en"
+  ],
+  "label": "English"
+ },
+ "languages": {
+  "es": {
+   "lang": "es-MX",
+   "locale": "es_MX",
+   "hreflang": [
+    "es",
+    "es-MX"
+   ],
+   "label": "Español",
+   "style": "Mexican Spanish, informal tú."
+  },
+  "ja": {
+   "lang": "ja",
+   "locale": "ja_JP",
+   "hreflang": [
+    "ja"
+   ],
+   "label": "日本語"
+  }
+ },
+ "live": true,
+ "pages": [
+  "/",
+  "/pricing/",
+  "/get"
+ ],
+ "common": {
+  "es": {
+   "header": {
+    "Download": "Descargar",
+    "Pricing": "Precios",
+    "Blog": "Blog"
+   },
+   "footer": {
+    "Blog": "Blog"
+   }
+  },
+  "ja": {
+   "header": {
+    "Download": "ダウンロード",
+    "Pricing": "料金",
+    "Blog": "ブログ"
+   }
+  }
+ },
+ "explicit": {
+  "es": [
+   {
+    "path": "/pricing/**",
+    "en": "Opens the download page",
+    "translation": "Abre la página de descarga"
+   }
+  ],
+  "ja": []
+ },
+ "glossary": {
+  "keep": [
+   "Beekeeper Studio"
+  ],
+  "terms": {
+   "Download": {
+    "es": "Descarga",
+    "ja": "ダウンロード"
+   }
+  }
+ }
+}

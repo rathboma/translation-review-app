@@ -82,3 +82,9 @@ test("a comment is optional, text is kept as typed", () => {
   assert.equal(parsed.value.notes[0].comment, "  too formal ");
   assert.equal(parseNote({ ...note(), comment: "" }).note!.comment, undefined);
 });
+
+test("a translation of tags with no words is empty", () => {
+  const tagsOnly = refused(body({ notes: [note({ key: 'Read <a href="/x">this</a>', current: 'Lee <a href="/x">esto</a>', new: '<a href="/x"></a>' })] }));
+  assert.match(tagsOnly.notes![0].errors[0], /empty/);
+  assert.ok(parseSubmission(body({ notes: [note({ key: 'Read <a href="/x">this</a>', current: 'Lee <a href="/x">esto</a>', new: 'Mira <a href="/x">esto</a>' })] })).ok);
+});

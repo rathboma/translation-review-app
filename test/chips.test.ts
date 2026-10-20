@@ -71,3 +71,12 @@ test("locate picks the match closest to where the selection was", () => {
   assert.deepEqual(locate(plain, "no", 4), [4, 6]);
   assert.deepEqual(locate(plain, "no", 9), [8, 10]);
 });
+
+test("hasWords sees text, not tags", async () => {
+  const { hasWords } = await import("../shared/chips.ts");
+  assert.equal(hasWords("<a href=\"/x\"></a><strong></strong>"), false);
+  assert.equal(hasWords("  <b> </b> "), false);
+  assert.equal(hasWords("<a href=\"/x\">x</a>"), true);
+  assert.equal(hasWords("&nbsp;"), false);
+  assert.equal(hasWords("日本語"), true);
+});

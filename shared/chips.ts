@@ -85,3 +85,8 @@ export function locate(plain: string, selected: string, hint = 0): [number, numb
   const loose = [...plain.matchAll(new RegExp(source, "gu"))].map((m) => [m.index, m.index + m[0].length] as [number, number]);
   return pick(loose);
 }
+
+// Whether there is text in an html fragment, apart from its tags.
+export function hasWords(html: string): boolean {
+  return plainText(parseParts(html)).trim() !== "";
+}

@@ -76,7 +76,7 @@ test("a fence in the translator's text cannot close the yaml block", () => {
 });
 
 test("yaml survives quotes, backslashes, newlines, unicode and separators", () => {
-  const tricky = 'a "quote" \\ backslash\nnew line\ttab é ñ 日本語 😀   \u0085 \u007f end: not a map # not a comment';
+  const tricky = 'a "quote" \\ backslash\nnew line\ttab é ñ 日本語 😀 \u2028 \u0085 \u007f end: not a map # not a comment';
   const doc = machineNotes(renderIssue(input([report({ new: tricky, key: "k: v", where: "x: y" })])).body);
   assert.equal(doc.notes[0].new, tricky);
   assert.equal(doc.notes[0].key, "k: v");

@@ -1,6 +1,7 @@
 // Checks the shape of a submission before anything else looks at it: the
 // limits (at most 100 notes, strings under 5,000 characters), the fields each
 // note must have, and the reviewer's name and email.
+import { hasWords } from "./chips.ts";
 import { KINDS, LIMITS, SOURCES, type Note, type NoteProblem, type Reviewer, type SegmentKind, type Source } from "./types.ts";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; notes?: NoteProblem[] };
@@ -96,7 +97,8 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
       if (texts.has(same)) errors.push("another note is about the same text: keep one");
       ids.add(note.id);
       texts.add(same);
-      if (note.new.trim() === "") errors.push("the new translation is empty");
+      // (Tags alone pass the lint, which checks the markup: they are not a translation.)
+      if (note.new.trim() === "" || !hasWords(note.new)) errors.push("the new translation is empty");
       // Keeping the English is an answer for a string the copy left untranslated.
       else if (note.new === note.current && note.source !== "english") errors.push("the new translation is the same as the current one");
     }
