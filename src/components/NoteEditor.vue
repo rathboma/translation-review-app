@@ -2,7 +2,7 @@
 // The note editor: the segment's English and current translation, where it is,
 // a text box for the whole new translation and an optional comment. It opens
 // next to the segment on a page, centered when it comes from a list.
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { normalize } from "../../vendor/translate/text.ts";
 import { scopeLabel } from "../../shared/apply.ts";
 import { hasWords } from "../../shared/chips.ts";
@@ -56,6 +56,13 @@ function save(): void {
   closeEditor();
 }
 
+// Back to the current translation, with the caret in the text box to carry on.
+async function reset(): Promise<void> {
+  draft.new = draft.current;
+  await nextTick();
+  editor.value?.focus();
+}
+
 function remove(): void {
   if (!confirmDelete.value) {
     confirmDelete.value = true;
@@ -106,7 +113,7 @@ onBeforeUnmount(() => card.value?.removeEventListener("keydown", onKeydown));
         <span class="label">New translation</span>
         <ChipEditor ref="editor" v-model="draft.new" :html="html" :preselect="preselect" label="New translation" />
         <p v-if="html && /</.test(draft.current + draft.key)" class="hint">Links and formatting are the grey tags: drag one to move it (or select it and press Alt+arrow). They can't be deleted.</p>
-        <button class="link reset" type="button" @click="draft.new = draft.current">Start again from the current translation</button>
+        <button class="link reset" type="button" @click="reset">Start again from the current translation</button>
       </div>
 
       <ul v-if="verdict.errors.length || verdict.warnings.length" class="verdict">

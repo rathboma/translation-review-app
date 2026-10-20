@@ -58,20 +58,34 @@ function marks(): void {
   if (props.selectedId) toggleClass(all, props.selectedId, "rv-selected", true);
 }
 
+// A click opens the editor, but a double or triple click is a person selecting
+// a word or a paragraph: the editor waits a moment to see which it is.
+const CLICK_WAIT = 250;
+let pending: ReturnType<typeof setTimeout> | undefined;
+const cancelPending = () => clearTimeout(pending);
+
 function onClick(side: Side, event: MouseEvent): void {
   // The pages are for reading: nothing in them is followed or submitted.
   event.preventDefault();
+  cancelPending();
+  if (event.detail > 1) return;
   const selection = docs[side]?.getSelection();
   if (selection && !selection.isCollapsed) return;
   const element = clickedSegment(event.target);
   if (!element) return;
-  emit("pick", { id: element.getAttribute("data-seg")!, side, selection: null, anchor: anchorOf(side, element.getBoundingClientRect()) });
+  const id = element.getAttribute("data-seg")!;
+  pending = setTimeout(() => {
+    if (docs[side]?.getSelection()?.isCollapsed === false) return;
+    emit("pick", { id, side, selection: null, anchor: anchorOf(side, element.getBoundingClientRect()) });
+  }, CLICK_WAIT);
 }
 
 function onSelect(side: Side): void {
   const doc = docs[side];
   if (!doc) return;
   const result = readSelection(doc);
+  // Only a selection cancels a click that is waiting: a mouse-up with none is the click's own.
+  if (result.kind !== "none") cancelPending();
   if (result.kind === "several") emit("notice", "Select within one paragraph.");
   if (result.kind !== "segment") return;
   const { id, text, start, rect } = result.selection;
@@ -107,6 +121,7 @@ function attach(side: Side): void {
   docs[side] = doc;
   doc.addEventListener("mouseover", (event) => hover(idAt(event.target)));
   doc.addEventListener("mouseleave", () => hover(null));
+  doc.addEventListener("mousedown", cancelPending);
   doc.addEventListener("click", (event) => onClick(side, event as MouseEvent));
   doc.addEventListener("mouseup", () => setTimeout(() => onSelect(side), 0));
   win.addEventListener("scroll", () => onScroll(side), { passive: true });
@@ -120,7 +135,10 @@ watch(() => props.page, () => {
   delete docs.translated;
 });
 
-onBeforeUnmount(() => cancelAnimationFrame(frame));
+onBeforeUnmount(() => {
+  cancelAnimationFrame(frame);
+  cancelPending();
+});
 </script>
 
 <template>

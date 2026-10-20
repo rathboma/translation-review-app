@@ -33,10 +33,15 @@ window.turnstile = {
   remove() {},
 };`;
 
-// Every test: a stand-in Turnstile, a clean mock, and a failure if the page's
+export const randomIp = () => `198.51.${Math.floor(Math.random() * 250)}.${Math.floor(1 + Math.random() * 250)}`;
+
+// Every test: a stand-in Turnstile, a clean mock, its own visitor address (the
+// rate limit counts per address, and in production Cloudflare says whose it is;
+// locally the header is believed), and a failure if the page's
 // Content-Security-Policy refused something.
-export async function prepare(page: Page): Promise<string[]> {
+export async function prepare(page: Page, ip = randomIp()): Promise<string[]> {
   await control({ reset: true });
+  await page.route("**/api/submit", (route) => route.continue({ headers: { ...route.request().headers(), "cf-connecting-ip": ip } }));
   await page.route("https://challenges.cloudflare.com/turnstile/v0/api.js*", (route) => route.fulfill({ contentType: "text/javascript", body: TURNSTILE }));
   const violations: string[] = [];
   page.on("console", (message) => {
@@ -63,8 +68,8 @@ export async function frameOf(page: Page, title: string): Promise<Frame> {
 }
 
 // Waits until a page is shown in both frames.
-export async function pageShown(page: Page, text = "Paga una vez"): Promise<void> {
-  await expect(translated(page).locator("p", { hasText: text }).first()).toBeVisible();
+export async function pageShown(page: Page, text = "Paga una vez", label = "Español"): Promise<void> {
+  await expect(translated(page, label).locator("p", { hasText: text }).first()).toBeVisible();
   await expect(english(page).locator("h1")).toBeVisible();
 }
 
@@ -143,7 +148,7 @@ export async function openPricing(page: Page, language = "es", query = "pric"): 
   await page.goto("/");
   await signIn(page);
   await pickPage(page, language, query);
-  await pageShown(page, language === "ja" ? "一度のお支払い" : "Paga una vez");
+  await (language === "ja" ? pageShown(page, "一度のお支払い", "日本語") : pageShown(page));
 }
 
 export const chipLabels = (page: Page) => newTranslation(page).locator(".chip").allTextContents();
@@ -160,3 +165,43 @@ export const typed = (page: Page) =>
     walk(el);
     return text.replace(/\u200b/g, "");
   });
+
+// Opens the editor on a paragraph of the translated page by clicking it, types
+// `text` over its whole translation (the click selects it all) and saves.
+export async function rewrite(page: Page, where: Locator, text: string, comment?: string): Promise<void> {
+  await where.click();
+  await expect(editor(page)).toBeVisible();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(text);
+  if (comment) await editor(page).getByLabel("Comment (optional)").fill(comment);
+  await editor(page).getByRole("button", { name: /Save note|Update note|Keep the English/ }).click();
+  await expect(editor(page)).toBeHidden();
+}
+
+export const issueNotes = (call: Calls["github"][number]) => machine(call.body.body).notes as any[];
+
+// Where a word is on the page, in the browser window's coordinates.
+export async function wordPoint(page: Page, frameTitle: string, paragraph: string, word: string): Promise<{ x: number; y: number }> {
+  const frame = await frameOf(page, frameTitle);
+  const box = await frame.evaluate(
+    ({ paragraph, word }) => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node as Text;
+        if (!text.parentElement!.closest("[data-seg]")?.textContent?.includes(paragraph)) continue;
+        const at = text.data.indexOf(word);
+        if (at === -1) continue;
+        const range = document.createRange();
+        range.setStart(text, at);
+        range.setEnd(text, at + word.length);
+        const r = range.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      return null;
+    },
+    { paragraph, word },
+  );
+  if (!box) throw new Error(`${JSON.stringify(word)} not found in ${JSON.stringify(paragraph)}`);
+  const frameBox = (await page.locator(`iframe[title="${frameTitle}"]`).boundingBox())!;
+  return { x: frameBox.x + box.x, y: frameBox.y + box.y };
+}

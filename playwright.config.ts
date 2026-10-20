@@ -1,11 +1,16 @@
+import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
 
 // The browser tests: the built app on `wrangler pages dev` (the real Functions,
 // with a local KV) against mocks of the translation Worker, GitHub and
-// Turnstile (e2e/mock-services.ts). Chromium is the one the sandbox ships.
+// Turnstile (e2e/mock-services.ts). Chromium: CHROMIUM_PATH, else the one a
+// sandbox may ship at /opt/pw-browsers, else Playwright's own (`npx playwright
+// install chromium`, as CI does).
 const MOCK = 8799;
 const APP = 8788;
 const mock = `http://127.0.0.1:${MOCK}`;
+const SANDBOX_CHROMIUM = "/opt/pw-browsers/chromium";
+const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(SANDBOX_CHROMIUM) ? SANDBOX_CHROMIUM : undefined);
 
 const bindings = [
   `TRANSLATIONS_URL=${mock}`,
@@ -30,7 +35,7 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${APP}`,
     viewport: { width: 1440, height: 900 },
-    launchOptions: { executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium" },
+    launchOptions: { executablePath },
     trace: "retain-on-failure",
   },
   webServer: [
