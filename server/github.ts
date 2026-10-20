@@ -38,6 +38,8 @@ export async function createIssue(env: Env, issue: { title: string; body: string
     const body = await response.json<{ message?: string }>().catch(() => ({}) as { message?: string });
     throw new GitHubError(response.status, `GitHub refused the issue (${response.status}${body.message ? `: ${body.message}` : ""})`);
   }
-  const created = await response.json<{ number: number; html_url: string }>();
+  const created = await response.json<{ number?: unknown; html_url?: unknown }>().catch(() => ({}) as { number?: unknown; html_url?: unknown });
+  // A redirect (a renamed repository) can turn the POST into a GET: not an issue.
+  if (typeof created.number !== "number" || typeof created.html_url !== "string") throw new GitHubError(502, "GitHub's answer was not an issue");
   return { number: created.number, url: created.html_url };
 }

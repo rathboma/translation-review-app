@@ -56,6 +56,9 @@ const SCOPES: Record<string, string> = {
   "exit-popup": "the exit popup",
 };
 
+// The name of an include people know, if it is one (not a property of every object).
+export const knownScope = (scope: string): string | undefined => (Object.hasOwn(SCOPES, scope) ? SCOPES[scope] : undefined);
+
 export function scopeLabel(scope: string): string {
-  return SCOPES[scope] ?? `the shared "${scope}" include`;
+  return knownScope(scope) ?? `the shared "${scope}" include`;
 }

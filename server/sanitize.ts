@@ -19,7 +19,11 @@ type Node = DefaultTreeAdapterTypes.Node;
 type Element = DefaultTreeAdapterTypes.Element;
 type ParentNode = DefaultTreeAdapterTypes.ParentNode;
 
-const DROP_ELEMENTS = new Set(["script", "noscript", "iframe", "frame", "object", "embed", "applet", "template", "base", "portal"]);
+const DROP_ELEMENTS = new Set([
+  "script", "noscript", "iframe", "frame", "object", "embed", "applet", "template", "base", "portal",
+  // SVG animation can set a link's href to a javascript: url.
+  "animate", "set", "animatemotion", "animatetransform",
+]);
 const DROP_LINK_RELS = new Set(["preload", "modulepreload", "prefetch", "prerender", "dns-prefetch", "preconnect", "manifest", "canonical", "alternate", "amphtml"]);
 const DROP_META_EQUIV = new Set(["refresh", "content-security-policy", "set-cookie", "x-ua-compatible"]);
 const DROP_META_NAMES = new Set(["robots", "googlebot", "bingbot", "referrer"]);
@@ -59,8 +63,9 @@ function dropElement(el: Element): boolean {
   return false;
 }
 
-// "java\tscript:" is a javascript: url to a browser.
-const SCRIPT_URL = /^(?:javascript|vbscript|data:text\/html)/i;
+// "java\tscript:" is a javascript: url to a browser. (Only with its colon:
+// "javascript-tips.html" is a relative url.)
+const SCRIPT_URL = /^(?:javascript:|vbscript:|data:text\/html)/i;
 const unsafeUrl = (value: string) => SCRIPT_URL.test(value.replace(/[\u0000- \u007f-\u009f]+/g, ""));
 
 function cleanAttributes(el: Element): void {
@@ -75,10 +80,24 @@ function cleanAttributes(el: Element): void {
   });
 }
 
+// The idioms that load a stylesheet late, by a handler this removes: media="print"
+// switched to "all" on load, and a preload that turns itself into a stylesheet.
+// Here the page should simply have the stylesheet.
+function upgradeLink(el: Element): void {
+  if (el.tagName !== "link" || attr(el, "onload") === undefined) return;
+  const rels = (attr(el, "rel") ?? "").toLowerCase().split(/\s+/);
+  if (rels.includes("preload") && (attr(el, "as") ?? "").toLowerCase() === "style") {
+    el.attrs = el.attrs.filter((a) => a.name !== "as" && a.name !== "rel");
+    el.attrs.push({ name: "rel", value: "stylesheet" });
+  }
+  if (rels.includes("stylesheet") || attr(el, "rel") === "stylesheet") el.attrs = el.attrs.filter((a) => a.name !== "media");
+}
+
 function clean(node: Node): void {
   const kept: Node[] = [];
   for (const child of children(node)) {
     if ("tagName" in child) {
+      upgradeLink(child);
       if (dropElement(child)) continue;
       cleanAttributes(child);
     }
@@ -97,10 +116,24 @@ function find(node: Node, tag: string): Element | undefined {
   return undefined;
 }
 
+// The page as it is after cleaning, cleaned again as long as that changes it: a
+// browser parses what is sent, and for a few constructs (foreign content, the
+// parser's adoption of misnested tags) that is not the tree that was cleaned.
+function cleaned(html: string): string {
+  let out = html;
+  for (let pass = 0; pass < 4; pass++) {
+    const doc = parse(out);
+    clean(doc);
+    const next = serialize(doc);
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
 // `base`: the origin the page's relative urls load from, with its trailing slash.
 export function sanitizePage(html: string, base: string): string {
-  const doc = parse(html);
-  clean(doc);
+  const doc = parse(cleaned(html));
   const head = find(doc, "head");
   if (head) {
     // Built as nodes, never spliced into markup.

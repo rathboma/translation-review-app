@@ -6,7 +6,7 @@
 // typed, so the translator's words only ever appear inside code spans: no
 // @mentions, no #123 links, no markdown or html of theirs is rendered. The
 // translator's email never gets here.
-import { scopeLabel } from "./apply.ts";
+import { knownScope } from "./apply.ts";
 import type { Report } from "./types.ts";
 
 // GitHub rejects an issue body over 65,536 characters; stay well under.
@@ -51,6 +51,11 @@ function fenced(info: string, text: string): string {
   return `${fence}${info}\n${text}\n${fence}`;
 }
 
+// Where a shared include is, for people. An unknown scope is text from whoever
+// sent the note (a note whose English has gone is filed as the browser sent it),
+// so it goes in a code span.
+const scopeText = (scope: string): string => knownScope(scope) ?? `the shared ${code(scope)} include`;
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 // ---- YAML -----------------------------------------------------------------
@@ -58,7 +63,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 // A double-quoted YAML scalar. JSON strings are valid ones; the characters
 // YAML 1.1 parsers treat as line breaks or reject are escaped too.
 export function quote(text: string): string {
-  return JSON.stringify(text).replace(/[\u007f-\u009f\u2028\u2029\ufeff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  return JSON.stringify(text).replace(/[\u007f-\u009f\u2028\u2029\ufeff\ufffe\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
 const RESERVED = /^(?:true|false|null|yes|no|on|off|y|n)$/i;
@@ -117,8 +122,8 @@ function section(report: Report, index: number): string {
   if (note.comment) lines.push(`Comment: ${code(note.comment)}`);
   if (report.warnings.length) lines.push(`Lint warnings: ${report.warnings.map(code).join(" · ")}`);
   if (note.scope) lines.push(note.source === "common"
-    ? `This text is in ${scopeLabel(note.scope)}: the change applies on every page.`
-    : `This text is in ${scopeLabel(note.scope)}, translated here for this page only.`);
+    ? `This text is in ${scopeText(note.scope)}: the change applies on every page.`
+    : `This text is in ${scopeText(note.scope)}, translated here for this page only.`);
   if (report.changedTo !== undefined) lines.push(`Heads up: the current translation has changed since this note was written, it is now ${code(report.changedTo)}.`);
   if (report.stale) lines.push("**Stale:** this English text is no longer on the page. Skip this note.");
   // Two trailing spaces: a markdown line break, so the fields stay one per line.
@@ -138,6 +143,12 @@ const FOOTER = `---
 3. Run \`node bin/translations.mjs lint\`: it must pass.
 4. Commit and open a pull request that closes this issue. The next deploy renders the affected pages again (their fingerprints change).`;
 
+// A name for a title, which is not code: cut by characters (not halves of an
+// emoji), and without what would link or mention.
+function titleName(name: string): string {
+  return Array.from(name.replace(/[#@`\[\]<>]/g, "")).slice(0, 60).join("").trim() || "a reviewer";
+}
+
 export function renderIssue(input: IssueInput): Issue {
   const { lang, label, reports } = input;
   const pages = new Set(reports.map((r) => r.note.path)).size;
@@ -155,7 +166,7 @@ export function renderIssue(input: IssueInput): Issue {
   ].join("\n\n");
   const suffix = input.part ? ` (part ${input.part.n} of ${input.part.of})` : "";
   return {
-    title: `Translation notes (${lang}): ${plural(reports.length, "note")} from ${name.slice(0, 60)}${suffix}`,
+    title: `Translation notes (${lang}): ${plural(reports.length, "note")} from ${titleName(name)}${suffix}`,
     body,
     labels: ["translation", `lang:${lang}`],
     reports,

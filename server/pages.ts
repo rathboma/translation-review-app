@@ -27,7 +27,7 @@ export async function pageHandler(request: Request, env: Env): Promise<Response>
   const path = params.get("path") ?? "";
   try {
     const manifest = await loadManifest(env);
-    if (!manifest.languages[lang]) return fail(404, `There is no language "${lang}".`, { code: "unknown-language" });
+    if (!Object.hasOwn(manifest.languages, lang)) return fail(404, `There is no language "${lang}".`, { code: "unknown-language" });
     if (!manifest.pages.includes(path)) return fail(404, `${path} is not one of the translated pages.`, { code: "unknown-page" });
     const page = await loadAnnotated(env, lang, path);
     if (!page) return fail(404, "This page is not translated yet.", { code: "not-translated" });

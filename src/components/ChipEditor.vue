@@ -16,7 +16,7 @@
 // cannot be left to do (anything that touches a chip) is done here, on the text
 // nodes; those edits are not on its undo stack, so undo and redo are kept here too.
 import { nextTick, onMounted, ref, watch } from "vue";
-import { chipLabel, locate, parseParts, plainText, serializeParts, type Part } from "../../shared/chips.ts";
+import { chipLabel, locate, parseParts, plainText, serializeParts, wellNested, type Part } from "../../shared/chips.ts";
 
 type TagPart = Extract<Part, { type: "tag" }>;
 
@@ -79,7 +79,7 @@ function build(value: string): void {
   active = null;
 }
 
-function read(): string {
+function readParts(): Part[] {
   const parts: Part[] = [];
   const text = (value: string) => {
     const clean = value.replace(GUARDS, "");
@@ -96,12 +96,34 @@ function read(): string {
     }
   };
   walk(root.value!);
-  return props.html ? serializeParts(parts) : plainText(parts);
+  return parts;
 }
 
-// After an edit: text nodes the browser or an edit left empty are gone, and the guards are back.
+const serialize = (parts: Part[]): string => (props.html ? serializeParts(parts) : plainText(parts));
+const read = (): string => serialize(readParts());
+
+// Guards belong at the chip side of a text node, one each. Others (left where a
+// chip was moved from, or typed before) are invisible breaks in the middle of
+// words, and a Delete or Backspace at one would do nothing.
+function tidyGuards(): void {
+  for (const node of textNodes()) {
+    for (let i = node.data.length - 1; i >= 0; i--) {
+      if (node.data[i] !== GUARD) continue;
+      const atStart = i === 0 && isChip(node.previousSibling);
+      const atEnd = i === node.data.length - 1 && isChip(node.nextSibling);
+      // (deleteData keeps a selection in the node where it was.)
+      if (!atStart && !atEnd) node.deleteData(i, 1);
+    }
+    while (node.data.startsWith(GUARD + GUARD)) node.deleteData(0, 1);
+    while (node.data.endsWith(GUARD + GUARD)) node.deleteData(node.data.length - 1, 1);
+  }
+}
+
+// After an edit: text nodes the browser or an edit left empty are gone, stray
+// guards too, and the guards that belong are back.
 function repair(): void {
   for (const node of textNodes()) if (node.data === "") node.remove();
+  tidyGuards();
   addGuards();
 }
 
@@ -252,8 +274,9 @@ function replaceKeepingChips(range: Range, text: string): void {
     // The range started between nodes: use the text node beside the point.
     const next = container.childNodes[offset] ?? null;
     const previous = container.childNodes[offset - 1] ?? null;
-    if (isText(next)) [node, at] = [next, 0];
-    else if (isText(previous)) [node, at] = [previous, previous.data.length];
+    // (After a guard at the start of the next node, before one at the end of the previous.)
+    if (isText(next)) [node, at] = [next, domOffset(next, 0, "start")];
+    else if (isText(previous)) [node, at] = [previous, domOffset(previous, previous.data.replace(GUARDS, "").length, "end")];
     else {
       node = document.createTextNode("");
       container.insertBefore(node, next);
@@ -299,6 +322,31 @@ function onCompositionStart(): void {
   if (!chips().some((chip) => range.intersectsNode(chip))) return;
   replaceKeepingChips(range, "");
   flash();
+  changed();
+}
+
+// The words in a range, without the chips' labels or the guards (what a person
+// means by copying a sentence with a link in it).
+function wordsIn(range: Range): string {
+  let out = "";
+  for (const node of textNodes()) {
+    if (!range.intersectsNode(node)) continue;
+    const from = node === range.startContainer ? range.startOffset : 0;
+    const to = node === range.endContainer ? range.endOffset : node.data.length;
+    out += node.data.slice(from, to);
+  }
+  return out.replace(GUARDS, "");
+}
+
+function onCopy(event: ClipboardEvent, cut = false): void {
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount || selection.isCollapsed || !root.value!.contains(selection.anchorNode)) return;
+  const range = selection.getRangeAt(0);
+  event.preventDefault();
+  event.clipboardData?.setData("text/plain", wordsIn(range));
+  if (!cut) return;
+  if (chips().some((chip) => range.intersectsNode(chip))) flash();
+  replaceKeepingChips(range, "");
   changed();
 }
 
@@ -353,10 +401,24 @@ function redo(): void {
 
 // ---- moving chips -----------------------------------------------------------
 
+// Puts the text box as it was if a move left a tag closed before it was opened,
+// or two overlapping: the lint compares tags as a list, and would let it through.
+// `index` is the chip's place among the chips before it moved.
+function keepNested(before: Part[], index: number): boolean {
+  if (!wellNested(before) || wellNested(readParts())) return true;
+  build(serialize(before));
+  active = chips()[index] ?? null;
+  active?.classList.add("chip-active");
+  flash();
+  return false;
+}
+
 // One character (or one other chip) along.
 function moveChip(chip: HTMLElement, direction: 1 | -1): void {
   const neighbour = direction === 1 ? chip.nextSibling : chip.previousSibling;
   if (!neighbour) return;
+  const before = readParts();
+  const index = chips().indexOf(chip);
   const parent = chip.parentNode!;
   if (isText(neighbour)) {
     const real = neighbour.data.replace(GUARDS, "");
@@ -376,7 +438,7 @@ function moveChip(chip: HTMLElement, direction: 1 | -1): void {
     parent.insertBefore(chip, neighbour);
   }
   settle();
-  changed();
+  if (keepNested(before, index)) changed();
 }
 
 // After chips move: text nodes joined, empty ones gone, the guards back (and
@@ -432,12 +494,14 @@ function onDrop(event: DragEvent): void {
   if (!chip) return;
   const place = dropPosition(event.clientX, event.clientY);
   if (!place) return;
+  const before = readParts();
+  const index = chips().indexOf(chip);
   const range = document.createRange();
   range.setStart(...place);
   range.collapse(true);
   range.insertNode(chip);
   settle();
-  changed();
+  if (keepNested(before, index)) changed();
 }
 
 function onClick(event: MouseEvent): void {
@@ -480,6 +544,8 @@ defineExpose({ focus, selectAll });
     @beforeinput="onBeforeInput"
     @compositionstart="onCompositionStart"
     @paste="onPaste"
+    @copy="onCopy($event)"
+    @cut="onCopy($event, true)"
     @keydown="onKeydown"
     @click="onClick"
     @dragstart="onDragStart"

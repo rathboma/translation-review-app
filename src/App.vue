@@ -33,6 +33,13 @@ function onPick(pick: { id: string; side: "english" | "translated"; selection: {
   openEditor({ draft: draftFor(segment), origin: pick.side, anchor: pick.anchor, preselect: pick.selection });
 }
 
+// "Not you?" is for a browser someone else will use, and takes the unsent notes with it.
+function leave(): void {
+  const n = state.notes.length;
+  if (n && !window.confirm(`Sign out? The ${n} note${n === 1 ? "" : "s"} you haven't sent will be deleted from this browser.`)) return;
+  signOut();
+}
+
 function chooseLanguage(event: Event): void {
   const lang = (event.target as HTMLSelectElement).value;
   // The same page in the other language, if it is a page there.
@@ -68,7 +75,7 @@ watch(() => state.path, () => closeEditor());
       </button>
       <span class="spacer"></span>
       <span class="who" :title="state.reviewer.email">{{ state.reviewer.name }}</span>
-      <button class="link" type="button" @click="signOut">Not you?</button>
+      <button class="link" type="button" @click="leave">Not you?</button>
     </header>
 
     <main class="stage">

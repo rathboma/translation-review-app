@@ -34,3 +34,21 @@ test("a good note survives the company of bad ones", async () => {
   const state = await start({ notes: [{ junk: true }, good, 12, { ...good, id: "has spaces" }] });
   assert.deepEqual(state.notes.map((n) => n.id), ["n1"]);
 });
+
+test("a plus sign in a page path survives the address", async () => {
+  await start({});
+  const { pathQuery } = await import("../../src/lib/state.ts");
+  for (const path of ["/blog/c++-guide/", "/a b/", "/x?y=1&z#top", "/plain/"]) {
+    const query = new URLSearchParams(pathQuery("es", path));
+    assert.equal(query.get("path"), path, path);
+    assert.equal(query.get("lang"), "es");
+  }
+});
+
+test("a language that is a property of every object is not a place to start", async () => {
+  const state = await start({ last: { lang: "constructor", path: "/" } });
+  state.manifest = { site: "x", languages: { es: { lang: "es-MX", label: "Español" } }, pages: ["/"], glossary: {}, turnstileSiteKey: "" };
+  const { startingPlace } = await import("../../src/lib/state.ts");
+  assert.deepEqual(startingPlace("?lang=toString&path=/"), { lang: "", path: "" });
+  assert.deepEqual(startingPlace("?lang=es&path=/"), { lang: "es", path: "/" });
+});

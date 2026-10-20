@@ -3,6 +3,8 @@
 // site data, a full disk), and the app works without it.
 const PREFIX = "translation-review:";
 
+export const storageKey = (key: string): string => PREFIX + key;
+
 export function load<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(PREFIX + key);

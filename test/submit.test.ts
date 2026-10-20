@@ -248,7 +248,7 @@ test("GitHub failing on the first issue leaves everything in the queue", async (
 
 test("a long submission is split into several issues of one language", async () => {
   const long = "palabra ".repeat(500).trim();
-  const segments = Array.from({ length: 30 }, (_, i) => segment({ id: `s${i}`, key: `Key ${i}`, translation: long }));
+  const segments = Array.from({ length: 20 }, (_, i) => segment({ id: `s${i}`, key: `Key ${i}`, translation: long }));
   w.worker.pages["es /pricing/"] = annotated("es", "/pricing/", segments);
   const notes = segments.map((s, i) => note({ id: `n${i}`, key: s.key, current: long, new: `${long} ${i}` }));
   const response = await send(env(), submission(notes));

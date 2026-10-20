@@ -5,10 +5,11 @@ import { reactive, watch } from "vue";
 import { Lint } from "../../vendor/translate/lint.ts";
 import { normalize } from "../../vendor/translate/text.ts";
 import type { AnnotatedPage, IssueRef, ManifestInfo, Note, NoteProblem, Reviewer, Segment, SegmentKind, Source } from "../../shared/types.ts";
+import { hasWords, nestingProblem } from "../../shared/chips.ts";
 import { LIMITS } from "../../shared/types.ts";
-import { parseNote, parseReviewer } from "../../shared/validate.ts";
+import { batch, parseNote, parseReviewer } from "../../shared/validate.ts";
 import * as api from "./api.ts";
-import { load, save } from "./storage.ts";
+import { load, save, storageKey } from "./storage.ts";
 
 // A note being written: the segment it is about, and what the translator has
 // typed so far. `id` is null until it is saved.
@@ -76,10 +77,19 @@ export const state = reactive({
   editingSeq: 0,
   drawer: false,
   queueOpen: false,
-  submit: { open: false, busy: false, error: "", issues: [] as IssueRef[] },
+  submit: { open: false, busy: false, done: false, error: "", issues: [] as IssueRef[], stale: 0 },
 });
 
 watch(() => state.notes, (notes) => save("notes", notes), { deep: true });
+
+// Another tab changed the queue or signed out: this one follows (it is the same
+// browser's queue, and two tabs must not overwrite each other's).
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key === storageKey("notes")) state.notes.splice(0, state.notes.length, ...savedNotes());
+    else if (event.key === storageKey("reviewer")) state.reviewer = savedReviewer();
+  });
+}
 
 // ---- the reviewer -----------------------------------------------------------
 
@@ -88,10 +98,14 @@ export function setReviewer(reviewer: Reviewer): void {
   save("reviewer", reviewer);
 }
 
-// The queue stays: it is theirs, not the next person's to see, but it is on
-// this browser, so signing out keeps it for the same browser's next sign in.
+// Signing out is for a browser someone else is about to use, so the notes that
+// were not sent go too: they are the last person's, and would be sent under the
+// next one's name.
 export function signOut(): void {
   state.reviewer = null;
+  state.notes.splice(0, state.notes.length);
+  state.problems = {};
+  state.editing = null;
   save("reviewer", null);
 }
 
@@ -108,7 +122,8 @@ export async function loadManifest(): Promise<void> {
 }
 
 export function pathQuery(lang: string, path: string): string {
-  return `?lang=${encodeURIComponent(lang)}&path=${encodeURI(path).replace(/[?#&]/g, encodeURIComponent)}`;
+  // (A "+" in a query is a space.)
+  return `?lang=${encodeURIComponent(lang)}&path=${encodeURI(path).replace(/[?#&+]/g, encodeURIComponent)}`;
 }
 
 let loading = 0;
@@ -153,9 +168,9 @@ export function startingPlace(search: string): { lang: string; path: string } {
   const lang = params.get("lang");
   const path = params.get("path");
   const languages = state.manifest?.languages ?? {};
-  if (lang && languages[lang]) return { lang, path: path && state.manifest!.pages.includes(path) ? path : "" };
+  if (lang && Object.hasOwn(languages, lang)) return { lang, path: path && state.manifest!.pages.includes(path) ? path : "" };
   const last = load<{ lang: string; path: string } | null>("last", null);
-  if (last && languages[last.lang]) return { lang: last.lang, path: state.manifest!.pages.includes(last.path) ? last.path : "" };
+  if (last && typeof last.lang === "string" && Object.hasOwn(languages, last.lang)) return { lang: last.lang, path: state.manifest!.pages.includes(last.path) ? last.path : "" };
   return { lang: "", path: "" };
 }
 
@@ -250,10 +265,21 @@ export function lint(lang: string, key: string, value: string): { errors: string
   return linter.check(key, value);
 }
 
-// What is wrong with a note: the lint's verdict now, and what the server said
-// when it last refused it. The server's reasons that the lint repeats are dropped.
-export function problemsFor(note: Pick<Note, "id" | "lang" | "key" | "new">): { errors: string[]; warnings: string[] } {
-  const own = lint(note.lang, note.key, note.new);
+// What is wrong with a translation: the Worker's lint, and two things it does not
+// look at (it checks the tags as a list, and not for words).
+export function verdict(note: { lang: string; key: string; new: string; kind?: string }): { errors: string[]; warnings: string[] } {
+  const result = lint(note.lang, note.key, normalize(note.new));
+  const errors = [...result.errors];
+  if (!hasWords(note.new) && !errors.includes("empty")) errors.push("empty: there are no words in the translation");
+  const nesting = (note.kind ?? "html") === "html" ? nestingProblem(note.key, note.new) : null;
+  if (nesting) errors.push(nesting);
+  return { errors, warnings: result.warnings };
+}
+
+// What is wrong with a note: that verdict now, and what the server said when it
+// last refused it. The server's reasons that the verdict repeats are dropped.
+export function problemsFor(note: Pick<Note, "id" | "lang" | "key" | "new" | "kind">): { errors: string[]; warnings: string[] } {
+  const own = verdict(note);
   const server = state.problems[note.id];
   return {
     errors: [...new Set([...own.errors, ...(server?.errors ?? [])])],
@@ -264,7 +290,7 @@ export function problemsFor(note: Pick<Note, "id" | "lang" | "key" | "new">): { 
 // ---- submitting -------------------------------------------------------------
 
 export function openSubmit(): void {
-  state.submit = { open: true, busy: false, error: "", issues: [] };
+  state.submit = { open: true, busy: false, done: false, error: "", issues: [], stale: 0 };
 }
 
 export function closeSubmit(): void {
@@ -275,12 +301,17 @@ export async function submitNotes(turnstileToken: string): Promise<boolean> {
   const reviewer = state.reviewer!;
   state.submit.busy = true;
   state.submit.error = "";
-  const { data } = await api.postSubmit({ name: reviewer.name, email: reviewer.email, notes: state.notes.map((n) => ({ ...n })), turnstileToken });
+  // As many as one submission can hold; the rest stay for the next.
+  const sent = batch(state.notes);
+  const { data } = await api.postSubmit({ name: reviewer.name, email: reviewer.email, notes: sent.map((n) => ({ ...n })), turnstileToken });
   state.submit.busy = false;
   if (data.ok) {
-    state.notes.splice(0, state.notes.length);
+    const filed = new Set(sent.map((n) => n.id));
+    for (let i = state.notes.length - 1; i >= 0; i--) if (filed.has(state.notes[i].id)) state.notes.splice(i, 1);
     state.problems = {};
     state.submit.issues = data.issues;
+    state.submit.stale = data.stale;
+    state.submit.done = true;
     return true;
   }
   state.submit.error = data.error;

@@ -72,3 +72,57 @@ test("forms don't steal focus and videos don't autoplay", () => {
   const html = clean("", '<input autofocus name="q"><video autoplay muted src="/v.mp4"></video>');
   assert.ok(!html.includes("autofocus") && !html.includes("autoplay"), html);
 });
+
+// ---- found by review ----------------------------------------------------------
+
+const elementsOf = (html: string) => {
+  const out: any[] = [];
+  const walk = (n: any) => {
+    out.push(n);
+    (n.childNodes ?? []).forEach(walk);
+    if (n.content) n.content.childNodes.forEach(walk);
+  };
+  walk(parse(html));
+  return out.filter((n) => n.tagName);
+};
+
+test("a relative url that starts with the letters 'javascript' is kept: only the scheme is dangerous", () => {
+  const html = clean("", '<a href="javascript-tips.html">tips</a><img src="javascript.svg"><a href="javascript:alert(1)">bad</a><a href="data:text/html,x">bad</a>');
+  assert.ok(html.includes('href="javascript-tips.html"'), html);
+  assert.ok(html.includes('src="javascript.svg"'), html);
+  assert.ok(!html.includes("alert(1)") && !html.includes("data:text/html"), html);
+});
+
+test("a stylesheet that a handler switches on is simply on, and one that a handler upgrades is a stylesheet", () => {
+  const html = clean(
+    '<link rel="stylesheet" href="/late.css" media="print" onload="this.media=\'all\'">' +
+      '<noscript><link rel="stylesheet" href="/late.css"></noscript>' +
+      '<link rel="preload" as="style" href="/fonts.css" onload="this.onload=null;this.rel=\'stylesheet\'">' +
+      '<link rel="preload" as="font" href="/a.woff2" crossorigin>',
+  );
+  const links = elementsOf(html).filter((el) => el.tagName === "link");
+  const attrs = (el: any) => Object.fromEntries(el.attrs.map((a: any) => [a.name, a.value]));
+  const sheets = links.map(attrs).filter((a) => a.rel === "stylesheet");
+  assert.deepEqual(sheets.map((a) => a.href).sort(), ["/fonts.css", "/late.css"]);
+  for (const sheet of sheets) assert.ok(!("media" in sheet) && !("onload" in sheet) && !("as" in sheet), JSON.stringify(sheet));
+  assert.ok(!html.includes("a.woff2"), "a preload of a font is still dropped");
+});
+
+test("what comes out is what a browser will parse: no element or handler appears when it is parsed again", () => {
+  const vectors = [
+    '<math><mtext><table><mglyph><style><!--</style><img title="--></mglyph><img src=1 onerror=alert(1)>">',
+    '<svg></p><style><a id="</style><img src=1 onerror=alert(1)>">',
+    '<noscript><p title="</noscript><img src=x onerror=alert(1)>">',
+    '<form><math><mtext></form><form><mglyph><style></math><img src onerror=alert(1)>',
+  ];
+  for (const vector of vectors) {
+    const out = clean("", vector);
+    const again = elementsOf(out);
+    assert.ok(!again.some((el) => el.tagName === "script" || el.attrs.some((a: any) => a.name.startsWith("on"))), `${vector}\n=> ${out}`);
+  }
+});
+
+test("animation elements that can set a javascript: href are dropped", () => {
+  const html = clean("", '<svg><a><animate attributeName="href" values="javascript:alert(1)"/><set attributeName="href" to="javascript:alert(1)"/><text>x</text></a></svg>');
+  assert.ok(!/<animate|<set\b/.test(html), html);
+});

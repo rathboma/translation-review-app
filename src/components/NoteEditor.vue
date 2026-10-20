@@ -5,8 +5,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { normalize } from "../../vendor/translate/text.ts";
 import { scopeLabel } from "../../shared/apply.ts";
-import { hasWords } from "../../shared/chips.ts";
-import { closeEditor, deleteNote, lint, saveNote, state, type Draft, type Editing } from "../lib/state.ts";
+import { closeEditor, deleteNote, saveNote, state, verdict as check, type Draft, type Editing } from "../lib/state.ts";
 import ChipEditor from "./ChipEditor.vue";
 import ChipText from "./ChipText.vue";
 
@@ -19,12 +18,7 @@ const editor = ref<InstanceType<typeof ChipEditor> | null>(null);
 const confirmDelete = ref(false);
 
 const language = computed(() => state.manifest?.languages[draft.lang]?.label ?? draft.lang);
-const verdict = computed(() => {
-  const result = lint(draft.lang, draft.key, normalize(draft.new));
-  // Tags with no words in them pass the Worker's lint, which checks the markup: they are not a translation.
-  if (!hasWords(draft.new) && !result.errors.includes("empty")) return { ...result, errors: [...result.errors, "empty: there are no words in the translation"] };
-  return result;
-});
+const verdict = computed(() => check(draft));
 // Keeping the English is an answer for a string the copy has not translated.
 const changed = computed(() => normalize(draft.new) !== draft.current || draft.source === "english");
 const canSave = computed(() => changed.value && verdict.value.errors.length === 0);
@@ -49,6 +43,10 @@ const preselect = computed(() => {
   // From the English page, or a click, or a list: the whole translation.
   return "all" as const;
 });
+
+// Typed in, and not saved: a click on the backdrop must not throw it away (Escape and Cancel do, on purpose).
+const dirty = computed(() => normalize(draft.new) !== normalize(props.editing.draft.new) || draft.comment !== props.editing.draft.comment);
+const backdrop = () => !dirty.value && closeEditor();
 
 function save(): void {
   if (!canSave.value) return;
@@ -87,7 +85,7 @@ onBeforeUnmount(() => card.value?.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
-  <div class="editor-layer" :class="{ modal: centered }" @mousedown.self="closeEditor">
+  <div class="editor-layer" :class="{ modal: centered }" @mousedown.self="backdrop">
     <section ref="card" class="editor" :class="{ centered }" :style="style" role="dialog" aria-label="Note" aria-modal="false">
       <header class="editor-head">
         <div>

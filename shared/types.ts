@@ -130,7 +130,8 @@ export interface IssueRef {
 }
 
 export type SubmitResponse =
-  | { ok: true; issues: IssueRef[] }
+  // `stale`: how many notes were filed as stale (their English is gone).
+  | { ok: true; issues: IssueRef[]; stale: number }
   // `issues` and `filed` (the notes' ids) say what was filed before it failed,
   // so a retry doesn't file those again.
   | { ok: false; error: string; notes?: NoteProblem[]; issues?: IssueRef[]; filed?: string[] };
@@ -138,6 +139,9 @@ export type SubmitResponse =
 export const LIMITS = {
   notes: 100,
   text: 5000,
+  // All the text of a submission's notes, which bounds what it costs to check
+  // and how many issues it can become.
+  total: 200_000,
   name: 100,
   email: 254,
   id: 64,

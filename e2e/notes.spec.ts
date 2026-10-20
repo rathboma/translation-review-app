@@ -249,7 +249,7 @@ test("when GitHub fails part way, the notes already filed leave the queue and th
   expect(github.map((g) => g.body.title.match(/\((\w+)\)/)![1])).toEqual(["es", "ja", "ja"]);
 });
 
-test("the queue survives a reload and signing out, and its notes can be edited and deleted", async ({ page }) => {
+test("the queue survives a reload, and its notes can be edited and deleted", async ({ page }) => {
   await openPricing(page);
   await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.", "más natural");
   await page.reload();
@@ -267,17 +267,104 @@ test("the queue survives a reload and signing out, and its notes can be edited a
   expect(await savedNotes(page)).toHaveLength(1);
   expect((await savedNotes(page))[0].new).toBe("Solo $99 al año por persona.");
 
-  await page.getByRole("button", { name: "Not you?" }).click();
-  await expect(page.getByRole("heading", { name: "Review the translations" })).toBeVisible();
-  await signIn(page, "Otra Persona", "otra@example.com");
-  await expect(queueToggle(page)).toContainText("1");
-
   await openQueue(page);
   await page.locator(".note").getByRole("button", { name: "Delete" }).click();
   await expect(page.locator(".note").getByRole("button", { name: "Really delete?" })).toBeVisible();
   await page.locator(".note").getByRole("button", { name: "Really delete?" }).click();
   await expect(page.locator(".note")).toHaveCount(0);
   expect(await savedNotes(page)).toEqual([]);
+});
+
+test("signing out is for the next person at this browser: it asks, and the unsent notes go", async ({ page }) => {
+  await openPricing(page);
+  await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
+  // Declined: still signed in, still has the note.
+  const messages: string[] = [];
+  page.once("dialog", (d) => {
+    messages.push(d.message());
+    void d.dismiss();
+  });
+  await page.getByRole("button", { name: "Not you?" }).click();
+  expect(messages[0]).toContain("The 1 note you haven't sent will be deleted");
+  await expect(queueToggle(page)).toContainText("1");
+  // Accepted: signed out, nothing left for the next person to send as theirs.
+  page.once("dialog", (d) => void d.accept());
+  await page.getByRole("button", { name: "Not you?" }).click();
+  await expect(page.getByRole("heading", { name: "Review the translations" })).toBeVisible();
+  await signIn(page, "Otra Persona", "otra@example.com");
+  await expect(queueToggle(page)).toContainText("0");
+  expect(await savedNotes(page)).toEqual([]);
+});
+
+test("without notes, signing out doesn't ask", async ({ page }) => {
+  await openPricing(page);
+  page.on("dialog", () => {
+    throw new Error("asked");
+  });
+  await page.getByRole("button", { name: "Not you?" }).click();
+  await expect(page.getByRole("heading", { name: "Review the translations" })).toBeVisible();
+});
+
+test("two tabs share one queue: a note made in one appears in the other", async ({ page, context }) => {
+  await openPricing(page);
+  const other = await context.newPage();
+  await other.goto("/");
+  await expect(queueToggle(other)).toContainText("0");
+  await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
+  await expect(queueToggle(other)).toContainText("1");
+  await other.close();
+});
+
+test("more notes than one submission holds: the first hundred are sent, the rest stay", async ({ page }) => {
+  await openPricing(page);
+  await page.evaluate(() => {
+    const notes = Array.from({ length: 105 }, (_, i) => ({
+      id: `n${i}`, lang: "es", path: "/pricing/", key: `Gone ${i}`, scope: null, source: "generated", kind: "html", where: "p", current: `Se fue ${i}`, new: `Se fue de verdad ${i}`,
+    }));
+    localStorage.setItem("translation-review:notes", JSON.stringify(notes));
+  });
+  await page.reload();
+  await pageShown(page);
+  await expect(queueToggle(page)).toContainText("105");
+  await page.getByRole("button", { name: "Submit 105 notes" }).click();
+  await expect(dialog(page)).toContainText("100 notes (Español: 100) of your 105");
+  await expect(dialog(page).getByRole("button", { name: "Submit 100 notes" })).toBeEnabled();
+  await dialog(page).getByRole("button", { name: "Submit 100 notes" }).click();
+  await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
+  await expect(dialog(page)).toContainText("5 more notes are still in your queue");
+  // They are about English that isn't on the page: filed as stale, and the translator is told.
+  await expect(dialog(page)).toContainText("100 of the notes were filed as stale");
+  await dialog(page).getByRole("button", { name: "Done" }).click();
+  expect(await savedNotes(page)).toHaveLength(5);
+  const { github } = await calls();
+  expect(github.length).toBeGreaterThanOrEqual(1);
+  expect(github.flatMap((g) => issueNotes(g)).length).toBe(100);
+});
+
+test("a stale note is reported to the translator", async ({ page }) => {
+  await openPricing(page);
+  await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
+  await control({ removeSegment: { page: "es /pricing/", key: "Only $99 a year for one user." } });
+  await submitAll(page);
+  await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
+  await expect(dialog(page)).toContainText("1 of the notes was filed as stale");
+});
+
+test("a note that says what the page says already is refused, with the reason beside it", async ({ page }) => {
+  await openPricing(page);
+  await page.evaluate(() => {
+    localStorage.setItem("translation-review:notes", JSON.stringify([
+      { id: "moot", lang: "es", path: "/pricing/", key: "Only $99 a year for one user.", scope: null, source: "generated", kind: "html", where: "p", current: "Solo $99 por año.", new: "Solo $99 al año para un usuario." },
+    ]));
+  });
+  await page.reload();
+  await pageShown(page);
+  await submitAll(page);
+  await expect(dialog(page).getByRole("alert")).toContainText("Some notes need fixing");
+  await dialog(page).getByRole("button", { name: "Close" }).click();
+  await openQueue(page);
+  await expect(page.locator('.note[data-note="moot"]')).toContainText("already the current translation");
+  expect((await calls()).github).toHaveLength(0);
 });
 
 test("no secret reaches the browser, and the Worker is only asked with its token", async ({ page }) => {
@@ -316,4 +403,28 @@ test("the sixth submission an hour from one address is refused, and the notes st
   await expect(dialog(page).getByRole("alert")).toContainText("Too many submissions from your network. Try again in 60 minutes.");
   await expect(queueToggle(page)).toContainText("1");
   expect((await calls()).github).toHaveLength(5);
+});
+
+test("tags in the wrong order pass the Worker's lint, and are an error in the queue and the editor all the same", async ({ page }) => {
+  await openPricing(page);
+  // The same tags as the English, so the lint, which compares them as a list, is content.
+  await page.evaluate(() => {
+    localStorage.setItem("translation-review:notes", JSON.stringify([
+      { id: "crossed", lang: "es", path: "/pricing/", key: 'Read the <a href="/docs">documentation</a> and <strong>start for free</strong>.', scope: null, source: "generated", kind: "html", where: "p",
+        current: 'Lee la <a href="/docs">documentación</a> y <strong>empieza gratis</strong>.', new: 'Lee la documentación</a><a href="/docs"> y <strong>empieza gratis</strong>.' },
+    ]));
+  });
+  await page.reload();
+  await pageShown(page);
+  await openQueue(page);
+  const row = page.locator('.note[data-note="crossed"]');
+  await expect(row).toContainText("the tags are not nested correctly");
+  await row.getByRole("button", { name: "Edit" }).click();
+  await expect(editor(page)).toContainText("the tags are not nested correctly");
+  await expect(editor(page).getByRole("button", { name: /Update note|Save note/ })).toBeDisabled();
+  // And the server refuses it, whatever a browser says.
+  await page.keyboard.press("Escape");
+  await submitAll(page);
+  await expect(dialog(page).getByRole("alert")).toContainText(/Some (notes|translations) need fixing/);
+  expect((await calls()).github).toHaveLength(0);
 });

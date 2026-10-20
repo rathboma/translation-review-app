@@ -48,7 +48,9 @@ browser ──► Cloudflare Pages ──── static frontend (Vue 3, Vite)   
   replaces the text and leaves the chips. Japanese IME input works.
 - **Submitting** (`server/submit.ts`): rate limit, Turnstile, the shape of the
   submission (at most 100 notes, strings under 5,000 characters), then every new
-  translation through the Worker's own lint (`vendor/translate/`). Errors are
+  translation through the Worker's own lint (`vendor/translate/`) and a check of
+  its own that the tags are nested as in the English (the lint compares tags as a
+  list, so it can't see a link closed before it is opened). Errors are
   returned per note and nothing is filed while any note has one. Then each page's
   live data is fetched again: a note whose English has gone is filed as **stale**,
   and how a correction is applied is worked out from the string's source *now*.
@@ -181,6 +183,38 @@ if the Worker's have changed (CI runs that weekly).
 The app is `noindex` (`X-Robots-Tag` in `public/_headers`, `robots.txt`) and has no
 analytics. Its Content-Security-Policy is in `public/_headers`: scripts only from the
 app and Turnstile; the pages shown get styles, images and fonts from the site.
+
+## Limits, and what is not solved
+
+- **One submission holds at most 100 notes and 200,000 characters of note text** (which
+  bounds the work of checking it, and the issues it can become: about eight). The queue
+  can hold more: a submit sends as many from the start as fit, and says so, and the rest
+  stay for the next.
+- **The rate limit is a sliding hour per visitor** (an IPv4 address, or an IPv6 /64),
+  in KV. A submission takes one of the five when the human check passes, and gives it
+  back unless something is filed, so refused notes and GitHub being down cost nothing.
+  KV has no atomic update: a lock in the isolate serializes a burst it serves, but two
+  isolates can still read the same count, so this stops a person, not a determined script.
+- **A note whose English has gone from the page is filed as stale** (and so are a page's
+  notes if the Worker has no copy of it at that moment). The translator is told how many
+  were, in the answer. Anything about such a note that the browser sent (its scope, its
+  text) can't be checked against the page, so it is only ever shown inside code spans.
+- **A translator's name is on a public issue**, and the browser's queue is theirs: "Not
+  you?" asks first, and then deletes the unsent notes, so the next person at the
+  browser doesn't send them under their own name.
+- **A zero-width space in a translation is dropped** when that translation is edited: the
+  editor uses one as a place to put the caret beside a tag, and cannot tell it from the
+  one in the text. Any other entity (`&mdash;`, `&nbsp;`) comes back as the character.
+- **If GitHub times out after creating an issue**, the response says the notes are still
+  queued, and sending them again files a second issue. GitHub offers no way to make the
+  request idempotent.
+- `GET /api/page` is not cached or authenticated (the Worker fetches and parses the live
+  page on each request); put Cloudflare's rate limiting rules in front if that matters.
+- A page with thousands of segments gets slower to hover (about 35 ms a move at 3,000; at
+  600 it is not measurable).
+- Not run against the real services: Turnstile, GitHub and the deployed Worker are mocked
+  in every test, and the real pages of beekeeperstudio.io were not available, so how they
+  look with their scripts removed is unseen.
 
 ## Differences from the spec
 

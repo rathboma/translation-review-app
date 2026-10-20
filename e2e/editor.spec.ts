@@ -160,3 +160,80 @@ test("a Japanese IME composing over a selection types in the link, and the link 
   expect(await chipLabels(page)).toEqual(["<a>", "</a>", "<strong>", "</strong>"]);
   expect(await save(page)).toBe('Lee la <a href="/docs">日本</a> y <strong>empieza gratis</strong>.');
 });
+
+// ---- found by review ----------------------------------------------------------
+
+const GUARD = "\u200b";
+// Guards that are not at the chip side of a text node.
+const strayGuards = (page: import("@playwright/test").Page) =>
+  newTranslation(page).evaluate((el, guard) => {
+    let stray = 0;
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType !== Node.TEXT_NODE) continue;
+      const data = node.textContent ?? "";
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] !== guard) continue;
+        const chipBefore = i === 0 && (node.previousSibling as HTMLElement | null)?.classList?.contains("chip");
+        const chipAfter = i === data.length - 1 && (node.nextSibling as HTMLElement | null)?.classList?.contains("chip");
+        if (!chipBefore && !chipAfter) stray++;
+      }
+    }
+    return stray;
+  }, GUARD);
+
+test("a chip can't be moved past the one it pairs with: the link would be closed before it is opened", async ({ page }) => {
+  await openLink(page);
+  const open = newTranslation(page).locator(".chip", { hasText: /^<a>$/ });
+  await open.click();
+  // Right along "documentación" (13 letters), to the end of the link, then one more: past </a>.
+  for (let i = 0; i < 16; i++) await page.keyboard.press("Alt+ArrowRight");
+  expect(await chipLabels(page)).toEqual(["<a>", "</a>", "<strong>", "</strong>"]);
+  expect(await save(page)).toBe('Lee la documentación<a href="/docs"></a> y <strong>empieza gratis</strong>.');
+});
+
+test("a chip can't be dragged to a place that crosses another pair", async ({ page }) => {
+  await openLink(page);
+  const close = newTranslation(page).locator(".chip", { hasText: "</strong>" });
+  // Dropped at the very start of the first line: </strong> before <strong> would be mis-nested.
+  await close.dragTo(newTranslation(page), { targetPosition: { x: 6, y: 18 } });
+  expect(await chipLabels(page)).toEqual(["<a>", "</a>", "<strong>", "</strong>"]);
+  await expect(newTranslation(page)).toHaveClass(/nudge/);
+  // Nothing moved, so there is nothing to save: type something to see the text is whole.
+  await page.keyboard.type("!");
+  await save(page);
+  // The chips are where they were, in order, around the same words (the "!" is the typing).
+  expect((await savedNotes(page))[0].new).toContain(LINK_HTML);
+});
+
+test("moving a chip across words leaves no invisible breaks in them", async ({ page }) => {
+  await openLink(page);
+  await newTranslation(page).locator(".chip", { hasText: "<strong>" }).click();
+  for (let i = 0; i < 4; i++) await page.keyboard.press("Alt+ArrowRight");
+  expect(await strayGuards(page)).toBe(0);
+  await page.keyboard.type("X");
+  expect(await strayGuards(page)).toBe(0);
+});
+
+test("copying across chips copies the words, not the chips' labels", async ({ page }) => {
+  await openLink(page);
+  await page.keyboard.press("Control+A");
+  const copied = await newTranslation(page).evaluate((el) => {
+    const data = new DataTransfer();
+    el.dispatchEvent(new ClipboardEvent("copy", { clipboardData: data, bubbles: true, cancelable: true }));
+    return data.getData("text/plain");
+  });
+  expect(copied).toBe(LINK);
+});
+
+test("cutting words across chips takes the words and leaves the chips", async ({ page }) => {
+  await openLink(page);
+  await page.keyboard.press("Control+A");
+  const cut = await newTranslation(page).evaluate((el) => {
+    const data = new DataTransfer();
+    el.dispatchEvent(new ClipboardEvent("cut", { clipboardData: data, bubbles: true, cancelable: true }));
+    return data.getData("text/plain");
+  });
+  expect(cut).toBe(LINK);
+  expect(await chipLabels(page)).toEqual(["<a>", "</a>", "<strong>", "</strong>"]);
+  expect((await typed(page)).trim()).toBe("");
+});
