@@ -26,3 +26,17 @@ TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 [[kv_namespaces]]
 binding = "REVIEWERS"
 id = "00000000000000000000000000000000"
+
+# Pull request previews (every deployment not from main). Pages needs vars and
+# kv_namespaces for an environment given together, and once this file is the
+# source of truth they can't be edited in the dashboard. A preview gets its own
+# KV namespace, and files its issues on a scratch repository (replace it), so
+# trying a branch never puts anything in the real one.
+[env.preview.vars]
+TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
+GITHUB_REPO = "OWNER/SCRATCH-REPO"
+TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+
+[[env.preview.kv_namespaces]]
+binding = "REVIEWERS"
+id = "00000000000000000000000000000000"
