@@ -18,6 +18,7 @@ TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
 GITHUB_REPO = "beekeeper-studio/web"
 # Public: the Turnstile widget's site key (its secret is TURNSTILE_SECRET).
 TURNSTILE_SITE_KEY = "0x4AAAAAAFfXLN2oRn2wQs6m"
+YARN_VERSION = "1.22"
 
 # Reviewers' name, email and issue numbers (never put in an issue) and the
 # per-IP submission counters. Create it with `wrangler kv namespace create
