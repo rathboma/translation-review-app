@@ -8,7 +8,6 @@ export function note(overrides: Partial<Note> = {}): Note {
     path: "/pricing/",
     key: "Pay once, use the paid features forever.",
     scope: null,
-    source: "generated",
     kind: "html",
     where: 'p, under "Pricing"',
     current: "Paga una vez, usa las funciones de pago para siempre.",
@@ -21,10 +20,8 @@ export function report(overrides: Partial<Note> = {}, extra: Partial<Report> = {
   const n = note(overrides);
   return {
     note: n,
-    fingerprint: "3f2a9c",
-    stale: false,
     warnings: [],
-    apply: applyFor({ lang: n.lang, path: n.path, key: n.key, scope: n.scope, source: n.source, translation: n.new }),
+    apply: applyFor({ lang: n.lang, path: n.path, key: n.key, scope: n.scope, translation: n.new }),
     ...extra,
   };
 }

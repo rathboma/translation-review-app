@@ -1,12 +1,12 @@
-// The app's state: who is reviewing, the manifest, the page on show, the queue
+// The app's state: who is reviewing, the site, the page on show, the queue
 // of notes (kept in localStorage across pages, languages and days) and what is
 // being edited.
 import { reactive, watch } from "vue";
 import { Lint } from "../../vendor/translate/lint.ts";
 import { normalize } from "../../vendor/translate/text.ts";
-import type { AnnotatedPage, IssueRef, ManifestInfo, Note, NoteProblem, Reviewer, Segment, SegmentKind, Source } from "../../shared/types.ts";
+import type { AnnotatedPage, Config, IssueRef, Note, NoteProblem, Reviewer, Segment, SegmentKind } from "../../shared/types.ts";
 import { hasWords, nestingProblem } from "../../shared/chips.ts";
-import { LIMITS } from "../../shared/types.ts";
+import { LANGUAGES, LIMITS } from "../../shared/types.ts";
 import { batch, parseNote, parseReviewer } from "../../shared/validate.ts";
 import * as api from "./api.ts";
 import { load, save, storageKey } from "./storage.ts";
@@ -19,7 +19,6 @@ export interface Draft {
   path: string;
   key: string;
   scope: string | null;
-  source: Source;
   kind: SegmentKind;
   where: string;
   current: string;
@@ -60,10 +59,57 @@ function savedNotes(): Note[] {
   });
 }
 
+// A web address as the site to read pages from: its origin, "" for none (the
+// default), or null if it is not one. "localhost:8788" is taken as https.
+export function normalizeSite(input: string): string | null {
+  const text = input.trim();
+  if (!text) return "";
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(text) ? text : `https://${text}`);
+    // (A browser takes "not an address" for the host "not%20an%20address".)
+    if (url.hostname.includes("%")) return null;
+    return url.protocol === "http:" || url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+// A page of the site: "/pricing/", or what was typed or pasted for it ("pricing",
+// a whole address, a translated page's address, which is its English page's).
+// Null if it is not one.
+export function normalizePath(input: string): string | null {
+  let text = input.trim();
+  if (!text || /\s/.test(text)) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) {
+    try {
+      const url = new URL(text);
+      text = url.pathname + url.search;
+    } catch {
+      return null;
+    }
+  }
+  text = text.replace(/#.*$/, "");
+  if (!text.startsWith("/")) text = `/${text}`;
+  for (const code of Object.keys(LANGUAGES)) {
+    if (text === `/${code}`) return "/";
+    if (text.startsWith(`/${code}/`)) return text.slice(code.length + 1);
+  }
+  return text;
+}
+
+export const languageLabel = (code: string): string => (Object.hasOwn(LANGUAGES, code) ? LANGUAGES[code].label : code);
+
+// The site a link asks for (?site=), else the default.
+function linkedSite(): string {
+  return typeof location === "undefined" ? "" : normalizeSite(new URLSearchParams(location.search).get("site") ?? "") ?? "";
+}
+
 export const state = reactive({
   reviewer: savedReviewer(),
-  manifest: null as ManifestInfo | null,
-  manifestError: "",
+  config: null as Config | null,
+  configError: "",
+  // The site the pages are read from; "" is the default.
+  site: linkedSite(),
   lang: "",
   path: "",
   page: null as AnnotatedPage | null,
@@ -77,7 +123,7 @@ export const state = reactive({
   editingSeq: 0,
   drawer: false,
   queueOpen: false,
-  submit: { open: false, busy: false, done: false, error: "", issues: [] as IssueRef[], stale: 0 },
+  submit: { open: false, busy: false, done: false, error: "", issues: [] as IssueRef[] },
 });
 
 watch(() => state.notes, (notes) => save("notes", notes), { deep: true });
@@ -111,19 +157,26 @@ export function signOut(): void {
 
 // ---- pages ------------------------------------------------------------------
 
-export async function loadManifest(): Promise<void> {
-  state.manifestError = "";
+export async function loadConfig(): Promise<void> {
+  state.configError = "";
   try {
-    state.manifest = await api.getManifest();
-    linters.clear();
+    state.config = await api.getConfig();
   } catch (error) {
-    state.manifestError = error instanceof Error ? error.message : String(error);
+    state.configError = error instanceof Error ? error.message : String(error);
   }
 }
 
 export function pathQuery(lang: string, path: string): string {
   // (A "+" in a query is a space.)
   return `?lang=${encodeURIComponent(lang)}&path=${encodeURI(path).replace(/[?#&+]/g, encodeURIComponent)}`;
+}
+
+// The address of the page on show, which is what a link to it is: the language,
+// the page and the site when it is not the default.
+function addressFor(lang: string, path: string): string {
+  const own = path ? pathQuery(lang, path) : lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  if (!state.site) return own || location.pathname;
+  return `${own ? `${own}&` : "?"}site=${encodeURIComponent(state.site)}`;
 }
 
 let loading = 0;
@@ -137,7 +190,7 @@ export async function openPage(lang: string, path: string): Promise<void> {
   state.drawer = false;
   save("last", { lang, path });
   try {
-    history.replaceState(history.state, "", path ? pathQuery(lang, path) : lang ? `?lang=${encodeURIComponent(lang)}` : location.pathname);
+    history.replaceState(history.state, "", addressFor(lang, path));
   } catch {
     // Not worth failing for.
   }
@@ -150,7 +203,7 @@ export async function openPage(lang: string, path: string): Promise<void> {
   state.loading = true;
   state.pageError = null;
   try {
-    const page = await api.getPage(lang, path);
+    const page = await api.getPage(lang, path, state.site);
     if (mine !== loading) return;
     state.page = page;
   } catch (error) {
@@ -162,15 +215,26 @@ export async function openPage(lang: string, path: string): Promise<void> {
   }
 }
 
+// Reads pages from another site (an address typed in), and shows the page again
+// from it. Returns what is wrong with the address, if anything.
+export async function setSite(input: string): Promise<string | null> {
+  const site = normalizeSite(input);
+  if (site === null) return "That is not a web address. Try one like https://www.beekeeperstudio.io";
+  const next = site === (state.config?.site ?? "") ? "" : site;
+  if (next === state.site) return null;
+  state.site = next;
+  await openPage(state.lang, state.path);
+  return null;
+}
+
 // Where to start: the link's page, else the last one, else nothing chosen.
 export function startingPlace(search: string): { lang: string; path: string } {
   const params = new URLSearchParams(search);
   const lang = params.get("lang");
   const path = params.get("path");
-  const languages = state.manifest?.languages ?? {};
-  if (lang && Object.hasOwn(languages, lang)) return { lang, path: path && state.manifest!.pages.includes(path) ? path : "" };
+  if (lang && Object.hasOwn(LANGUAGES, lang)) return { lang, path: (path && normalizePath(path)) || "" };
   const last = load<{ lang: string; path: string } | null>("last", null);
-  if (last && typeof last.lang === "string" && Object.hasOwn(languages, last.lang)) return { lang: last.lang, path: state.manifest!.pages.includes(last.path) ? last.path : "" };
+  if (last && typeof last.lang === "string" && Object.hasOwn(LANGUAGES, last.lang)) return { lang: last.lang, path: (typeof last.path === "string" && normalizePath(last.path)) || "" };
   return { lang: "", path: "" };
 }
 
@@ -196,7 +260,6 @@ export function draftFor(segment: Segment, lang = state.lang, path = state.path)
     path,
     key: segment.key,
     scope: segment.scope,
-    source: segment.source,
     kind: segment.kind,
     where: segment.where,
     current: currentOf(segment),
@@ -206,7 +269,7 @@ export function draftFor(segment: Segment, lang = state.lang, path = state.path)
 }
 
 export function draftOfNote(note: Note): Draft {
-  return { id: note.id, lang: note.lang, path: note.path, key: note.key, scope: note.scope, source: note.source, kind: note.kind, where: note.where, current: note.current, new: note.new, comment: note.comment ?? "" };
+  return { id: note.id, lang: note.lang, path: note.path, key: note.key, scope: note.scope, kind: note.kind, where: note.where, current: note.current, new: note.new, comment: note.comment ?? "" };
 }
 
 export function openEditor(editing: Editing): void {
@@ -227,7 +290,6 @@ export function saveNote(draft: Draft): Note {
     path: draft.path,
     key: draft.key,
     scope: draft.scope,
-    source: draft.source,
     kind: draft.kind,
     where: draft.where,
     current: draft.current,
@@ -261,7 +323,7 @@ const linters = new Map<string, Lint>();
 
 export function lint(lang: string, key: string, value: string): { errors: string[]; warnings: string[] } {
   let linter = linters.get(lang);
-  if (!linter) linters.set(lang, (linter = new Lint(state.manifest?.glossary ?? {}, lang)));
+  if (!linter) linters.set(lang, (linter = new Lint({}, lang)));
   return linter.check(key, value);
 }
 
@@ -290,7 +352,7 @@ export function problemsFor(note: Pick<Note, "id" | "lang" | "key" | "new" | "ki
 // ---- submitting -------------------------------------------------------------
 
 export function openSubmit(): void {
-  state.submit = { open: true, busy: false, done: false, error: "", issues: [], stale: 0 };
+  state.submit = { open: true, busy: false, done: false, error: "", issues: [] };
 }
 
 export function closeSubmit(): void {
@@ -303,14 +365,13 @@ export async function submitNotes(turnstileToken: string): Promise<boolean> {
   state.submit.error = "";
   // As many as one submission can hold; the rest stay for the next.
   const sent = batch(state.notes);
-  const { data } = await api.postSubmit({ name: reviewer.name, email: reviewer.email, notes: sent.map((n) => ({ ...n })), turnstileToken });
+  const { data } = await api.postSubmit({ name: reviewer.name, email: reviewer.email, ...(state.site ? { site: state.site } : {}), notes: sent.map((n) => ({ ...n })), turnstileToken });
   state.submit.busy = false;
   if (data.ok) {
     const filed = new Set(sent.map((n) => n.id));
     for (let i = state.notes.length - 1; i >= 0; i--) if (filed.has(state.notes[i].id)) state.notes.splice(i, 1);
     state.problems = {};
     state.submit.issues = data.issues;
-    state.submit.stale = data.stale;
     state.submit.done = true;
     return true;
   }

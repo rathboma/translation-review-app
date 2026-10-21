@@ -1,10 +1,4 @@
-// The shapes the frontend, the Pages Functions and the translation Worker
-// (workers/translate in beekeeper-studio/web) pass around.
-
-// Where a segment's current translation comes from, in the Worker's order
-// (workers/translate/src/resolve.ts). It decides how a correction is applied.
-export type Source = "explicit" | "common" | "generated" | "english";
-export const SOURCES: readonly Source[] = ["explicit", "common", "generated", "english"];
+// The shapes the frontend and the Pages Functions pass around.
 
 // html: the inner html of a text element; text: a bare text node; attr: an
 // attribute (alt, title, placeholder, aria-label, data-tooltip, submit value);
@@ -13,9 +7,15 @@ export const SOURCES: readonly Source[] = ["explicit", "common", "generated", "e
 export type SegmentKind = "html" | "text" | "attr" | "head";
 export const KINDS: readonly SegmentKind[] = ["html", "text", "attr", "head"];
 
-// One translatable string of a page, as GET /_translations/annotated has it.
-// A segment is a distinct (scope, key): the same English twice on a page is one
-// segment, and a correction changes both.
+// The translated copies of the site, each under its own url prefix.
+export const LANGUAGES: Record<string, { lang: string; label: string }> = {
+  es: { lang: "es-MX", label: "Español" },
+  "pt-br": { lang: "pt-BR", label: "Português" },
+  ja: { lang: "ja", label: "日本語" },
+};
+
+// One translatable string of a page. A segment is a distinct (scope, key): the
+// same English twice on a page is one segment, and a correction changes both.
 export interface Segment {
   // The same on the English and the translated side: data-seg="<id>".
   id: string;
@@ -26,43 +26,31 @@ export interface Segment {
   where: string;
   // The shared include (header, footer...) it is part of, or null.
   scope: string | null;
-  source: Source;
-  // The current translation (null while the copy has English there).
+  // What the translated page says there (null while it has the English).
   translation: string | null;
-  // source explicit: the path of the explicit entry that wins (an exact url, a
-  // glob or *), which is where a correction goes.
-  entryPath?: string;
 }
 
 export interface AnnotatedPage {
   lang: string;
   path: string;
-  fingerprint: string;
+  // The site the two pages came from.
+  site: string;
+  // Whether the translated page has the English page's segments, one for one. If
+  // not (the English changed since the copy was made) no segment has a
+  // translation, and the translated page has no marks.
+  aligned: boolean;
   // Both pages carry data-seg="<id>" on the element of every html segment
-  // (text segments are wrapped in <span data-seg>). By GET /api/page they are
-  // also made safe to show: no scripts, a <base>, and the review stylesheet.
+  // (text segments are wrapped in <span data-seg>), and are made safe to show:
+  // no scripts, a <base>, and the review stylesheet.
   english: string;
   translated: string;
   segments: Segment[];
 }
 
-// What the manifest endpoint gives the frontend (a trimmed copy of the Worker's).
-export interface Glossary {
-  keep?: string[];
-  terms?: Record<string, Record<string, string | string[]>>;
-}
-
-export interface LanguageInfo {
-  label: string;
-  // The cased BCP 47 tag: es-MX, pt-BR, ja.
-  lang: string;
-}
-
-export interface ManifestInfo {
+// What the config endpoint gives the frontend.
+export interface Config {
+  // The site reviewed unless a link or the translator says another.
   site: string;
-  languages: Record<string, LanguageInfo>;
-  pages: string[];
-  glossary: Glossary;
   turnstileSiteKey: string;
 }
 
@@ -75,7 +63,6 @@ export interface Note {
   // The segment's English (its key) and where it lives.
   key: string;
   scope: string | null;
-  source: Source;
   kind: SegmentKind;
   where: string;
   // What the translator saw as the current translation (the English while the
@@ -92,6 +79,8 @@ export interface Reviewer {
 }
 
 export interface SubmitBody extends Reviewer {
+  // The site the notes were written on (the default when left out).
+  site?: string;
   notes: Note[];
   turnstileToken: string;
 }
@@ -99,20 +88,12 @@ export interface SubmitBody extends Reviewer {
 // How a correction is applied to the files in beekeeper-studio/web.
 export type Apply =
   | { action: "set-common"; file: string; set: [scope: string, key: string, translation: string] }
-  | { action: "replace-explicit" | "add-explicit"; file: string; entry: Record<string, string> };
+  | { action: "set-explicit"; file: string; entry: Record<string, string> };
 
-// A note as it goes into an issue, after the Function has checked it against
-// the live page.
+// A note as it goes into an issue, after the lint.
 export interface Report {
   note: Note;
-  // The page's fingerprint when the note was filed.
-  fingerprint: string | null;
-  // The English is no longer on the page: skip it when applying.
-  stale: boolean;
   warnings: string[];
-  // The current translation is not the one the translator saw (it changed
-  // since): what it is now.
-  changedTo?: string;
   apply: Apply;
 }
 
@@ -130,8 +111,7 @@ export interface IssueRef {
 }
 
 export type SubmitResponse =
-  // `stale`: how many notes were filed as stale (their English is gone).
-  | { ok: true; issues: IssueRef[]; stale: number }
+  | { ok: true; issues: IssueRef[] }
   // `issues` and `filed` (the notes' ids) say what was filed before it failed,
   // so a retry doesn't file those again.
   | { ok: false; error: string; notes?: NoteProblem[]; issues?: IssueRef[]; filed?: string[] };

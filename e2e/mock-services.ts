@@ -1,8 +1,8 @@
 // The services the app's Functions call, mocked for the end to end tests:
 //
-//   the translation Worker   /_translations/manifest and /_translations/annotated
-//                            (answers from e2e/fixtures, made by the Worker's own code),
-//                            and the site's assets (the pages' stylesheet and image)
+//   the site                 /pricing/, /es/pricing/, /ja/pricing/, /, /es/ ... (the pages in
+//                            e2e/fixtures, made by the translation Worker's own code), and
+//                            its assets (the pages' stylesheet and image)
 //   GitHub                   POST /github/repos/<owner>/<repo>/issues
 //   Cloudflare Turnstile     POST /turnstile/verify
 //
@@ -15,24 +15,30 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string) => readFileSync(join(here, "fixtures", name), "utf8");
-const TOKEN = "e2e-token";
 const PORT = Number(process.env.MOCK_PORT ?? 8799);
 
-const manifest = JSON.parse(fixture("manifest.json"));
-const originals: Record<string, any> = {
-  "es /pricing/": JSON.parse(fixture("pricing.es.json")),
-  "ja /pricing/": JSON.parse(fixture("pricing.ja.json")),
-  "es /": JSON.parse(fixture("home.es.json")),
+// What the site serves: a page, or a redirect (a site with no copy of a page
+// answers with its English one).
+type Route = { file: string } | { redirect: string };
+const originals: Record<string, Route> = {
+  "/": { file: "home.en.html" },
+  "/es/": { file: "home.es.html" },
+  "/pricing/": { file: "pricing.en.html" },
+  "/es/pricing/": { file: "pricing.es.html" },
+  "/ja/pricing/": { file: "pricing.ja.html" },
+  // A page with no copy.
+  "/get": { file: "home.en.html" },
+  "/es/get": { redirect: "/get" },
 };
 
-let pages: Record<string, any> = structuredClone(originals);
-let calls: { worker: any[]; github: any[]; turnstile: any[] } = { worker: [], github: [], turnstile: [] };
+let routes: Record<string, Route> = structuredClone(originals);
+let calls: { site: { path: string; headers: Record<string, string | string[] | undefined> }[]; github: any[]; turnstile: any[] } = { site: [], github: [], turnstile: [] };
 let githubFail: number[] = [];
 let nextIssue = 4242;
 
 function reset(): void {
-  pages = structuredClone(originals);
-  calls = { worker: [], github: [], turnstile: [] };
+  routes = structuredClone(originals);
+  calls = { site: [], github: [], turnstile: [] };
   githubFail = [];
   nextIssue = 4242;
 }
@@ -60,14 +66,12 @@ createServer(async (req, res) => {
     if (path === "/__control" && req.method === "POST") {
       const body = JSON.parse(await read(req));
       if (body.reset) reset();
-      // The English changed since the copy was made: this segment is gone.
-      if (body.removeSegment) {
-        const page = pages[body.removeSegment.page];
-        page.segments = page.segments.filter((s: any) => s.key !== body.removeSegment.key);
-      }
       // Fail the Nth GitHub request from now (1 is the next).
       if (body.failGithub) githubFail = body.failGithub.map((n: number) => calls.github.length + n);
-      if (body.dropPage) delete pages[body.dropPage];
+      // A page the site stops serving.
+      if (body.drop) delete routes[body.drop];
+      // A page the site serves another file for: { "/pricing/": "home.en.html" }.
+      for (const [path, file] of Object.entries<string>(body.serve ?? {})) routes[path] = { file };
       return json(res, 200, { ok: true });
     }
 
@@ -79,21 +83,14 @@ createServer(async (req, res) => {
       res.writeHead(200, { "content-type": "image/png" });
       return res.end(PNG);
     }
-    if (path === "/__english/pricing") return text(res, 200, fixture("pricing.en.html"), "text/html");
-
-    if (path.startsWith("/_translations/")) {
-      calls.worker.push({ path: path + url.search, authorization: req.headers.authorization ?? null });
-      if (req.headers.authorization !== `Bearer ${TOKEN}`) return json(res, 401, { error: "unauthorized" });
-      if (path === "/_translations/manifest") return json(res, 200, manifest);
-      if (path === "/_translations/annotated") {
-        const lang = url.searchParams.get("lang") ?? "";
-        const p = url.searchParams.get("path") ?? "";
-        if (!manifest.languages[lang]) return json(res, 404, { error: `${lang} is not a translated language` });
-        if (!manifest.pages.includes(p)) return json(res, 404, { error: `${p} is not a translated page` });
-        const page = pages[`${lang} ${p}`];
-        return page ? json(res, 200, page) : json(res, 404, { error: `${p} is not translated yet in ${lang}` });
+    const route = routes[path];
+    if (route) {
+      calls.site.push({ path: path + url.search, headers: req.headers });
+      if ("redirect" in route) {
+        res.writeHead(302, { location: route.redirect });
+        return res.end();
       }
-      return json(res, 404, { error: "not found" });
+      return text(res, 200, fixture(route.file), "text/html");
     }
 
     if (path === "/turnstile/verify" && req.method === "POST") {

@@ -1,5 +1,5 @@
 // The app's own Functions.
-import type { AnnotatedPage, ManifestInfo, SubmitBody, SubmitResponse } from "../../shared/types.ts";
+import type { AnnotatedPage, Config, SubmitBody, SubmitResponse } from "../../shared/types.ts";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -35,9 +35,10 @@ async function get<T>(url: string): Promise<T> {
 
 type Failure = Extract<SubmitResponse, { ok: false }>;
 
-export const getManifest = () => get<ManifestInfo>("/api/manifest");
+export const getConfig = () => get<Config>("/api/config");
 
-export const getPage = (lang: string, path: string) => get<AnnotatedPage>(`/api/page?lang=${encodeURIComponent(lang)}&path=${encodeURIComponent(path)}`);
+export const getPage = (lang: string, path: string, site: string) =>
+  get<AnnotatedPage>(`/api/page?lang=${encodeURIComponent(lang)}&path=${encodeURIComponent(path)}${site ? `&site=${encodeURIComponent(site)}` : ""}`);
 
 export async function postSubmit(submission: SubmitBody): Promise<{ status: number; data: SubmitResponse }> {
   try {

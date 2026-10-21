@@ -9,10 +9,10 @@ export function json(data: unknown, status = 200, headers: Record<string, string
 export const fail = (status: number, error: string, extra: Record<string, unknown> = {}, headers: Record<string, string> = {}) =>
   json({ ok: false, error, ...extra }, status, headers);
 
-// The request's body as text, or null if it is over `max` bytes. It is read as
-// a stream and given up on at the limit: a body without a content-length (chunked)
-// must not be held in memory before it is checked.
-export async function readText(request: Request, max: number): Promise<string | null> {
+// A request's or response's body as text, or null if it is over `max` bytes. It
+// is read as a stream and given up on at the limit: a body without a
+// content-length (chunked) must not be held in memory before it is checked.
+export async function readText(request: Pick<Request, "headers" | "body">, max: number): Promise<string | null> {
   if (Number(request.headers.get("content-length") ?? 0) > max) return null;
   if (!request.body) return "";
   const reader = request.body.getReader();

@@ -148,7 +148,12 @@ onBeforeUnmount(() => {
       <iframe ref="english" title="English page" :srcdoc="page.english" sandbox="allow-same-origin" @load="attach('english')"></iframe>
     </section>
     <section class="pane" :aria-label="`${label} page`">
-      <header class="pane-head"><span>{{ label }}</span></header>
+      <header class="pane-head">
+        <span>{{ label }}</span>
+        <span v-if="!page.aligned" class="pane-warn" role="status">
+          This copy doesn't line up with the English page (it may have changed since the copy was made), so no translations are shown.
+        </span>
+      </header>
       <iframe ref="translated" :title="`${label} page`" :srcdoc="page.translated" sandbox="allow-same-origin" @load="attach('translated')"></iframe>
     </section>
   </div>

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { calls, selectPhrase, editor, english, machine, newTranslation, openQueue, pageShown, pickPage, prepare, queueToggle, selectedText, signIn, submitAll, translated } from "./helpers.ts";
+import { calls, MOCK, selectPhrase, editor, english, machine, newTranslation, openQueue, pageShown, pickPage, prepare, queueToggle, selectedText, signIn, submitAll, translated } from "./helpers.ts";
 
 let violations: string[];
 test.beforeEach(async ({ page }) => {
@@ -18,7 +18,7 @@ test("sign in, pick a page, select text on the translated side, write a note, su
   await expect(page.getByRole("alert")).toContainText("name is required");
   await signIn(page);
 
-  await pickPage(page, "es", "pric");
+  await pickPage(page, "es", "/pricing/");
   await expect(page).toHaveURL(/\?lang=es&path=\/pricing\//);
   await pageShown(page);
 
@@ -69,17 +69,16 @@ test("sign in, pick a page, select text on the translated side, write a note, su
     path: "/pricing/",
     key: "Pay once, use the paid features forever.",
     scope: null,
-    source: "generated",
     current: "Paga una vez, usa las funciones de pago para siempre.",
     new: "Paga una sola vez, usa las funciones de pago para siempre.",
     comment: '"una sola vez" reads more naturally.',
     apply: {
-      action: "add-explicit",
+      action: "set-explicit",
       file: "bin/translations/explicit/es.yml",
       entry: { path: "/pricing/", en: "Pay once, use the paid features forever.", es: "Paga una sola vez, usa las funciones de pago para siempre." },
     },
   });
-  expect(filed.fingerprint).toMatch(/^[0-9a-f]{16,}$/);
+  expect(machine(issue.body.body).site).toBe(MOCK);
 
   // The queue was cleared for good.
   await page.reload();

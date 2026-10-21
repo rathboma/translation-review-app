@@ -7,13 +7,15 @@ import PagePicker from "./components/PagePicker.vue";
 import SignIn from "./components/SignIn.vue";
 import SplitView from "./components/SplitView.vue";
 import SubmitDialog from "./components/SubmitDialog.vue";
-import { closeEditor, draftFor, loadManifest, openEditor, openPage, openSubmit, signOut, startingPlace, state, type Anchor } from "./lib/state.ts";
+import { LANGUAGES } from "../shared/types.ts";
+import { closeEditor, draftFor, languageLabel, loadConfig, openEditor, openPage, openSubmit, setSite, signOut, startingPlace, state, type Anchor } from "./lib/state.ts";
 
 const notice = ref("");
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 
-const languages = computed(() => Object.entries(state.manifest?.languages ?? {}));
-const label = computed(() => state.manifest?.languages[state.lang]?.label ?? state.lang);
+const languages = Object.entries(LANGUAGES);
+const label = computed(() => languageLabel(state.lang));
+const siteShown = computed(() => state.site || state.config?.site || "");
 const hiddenCount = computed(() => state.page?.segments.filter((s) => s.kind === "attr" || s.kind === "head").length ?? 0);
 const selectedId = computed(() => {
   const draft = state.editing?.draft;
@@ -46,9 +48,17 @@ function chooseLanguage(event: Event): void {
   void openPage(lang, state.path);
 }
 
+// The site to read pages from, typed in the bar.
+async function chooseSite(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const problem = await setSite(input.value);
+  if (problem) say(problem);
+  input.value = siteShown.value;
+}
+
 async function start(): Promise<void> {
-  await loadManifest();
-  if (!state.manifest) return;
+  await loadConfig();
+  if (!state.config) return;
   const place = startingPlace(location.search);
   await openPage(place.lang, place.path);
 }
@@ -65,11 +75,22 @@ watch(() => state.path, () => closeEditor());
   <div v-else class="app">
     <header class="bar">
       <span class="brand"><span class="hex" aria-hidden="true"></span> Translation review</span>
-      <select class="lang-select" aria-label="Language" :value="state.lang" :disabled="!languages.length" @change="chooseLanguage">
+      <select class="lang-select" aria-label="Language" :value="state.lang" @change="chooseLanguage">
         <option value="" disabled>Language…</option>
         <option v-for="[code, language] in languages" :key="code" :value="code">{{ language.label }}</option>
       </select>
       <PagePicker />
+      <input
+        class="site-input"
+        aria-label="Site"
+        title="The site the pages are read from"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="https://www.beekeeperstudio.io"
+        :value="siteShown"
+        @change="chooseSite"
+        @keydown.enter="($event.target as HTMLInputElement).blur()"
+      />
       <button class="bar-button" type="button" :disabled="!state.page" @click="state.drawer = !state.drawer">
         Hidden text <span v-if="hiddenCount" class="badge">{{ hiddenCount }}</span>
       </button>
@@ -79,17 +100,11 @@ watch(() => state.path, () => closeEditor());
     </header>
 
     <main class="stage">
-      <p v-if="state.manifestError" class="state error" role="alert">
-        {{ state.manifestError }} <button type="button" @click="retry">Try again</button>
+      <p v-if="state.configError" class="state error" role="alert">
+        {{ state.configError }} <button type="button" @click="retry">Try again</button>
       </p>
       <div v-else-if="state.loading" class="state" role="status">Loading the pages…</div>
-      <div v-else-if="state.pageError" class="state" :class="{ error: state.pageError.code !== 'not-translated' }" role="status">
-        <template v-if="state.pageError.code === 'not-translated'">
-          <strong>This page isn't translated yet.</strong>
-          <span>The translation is made within minutes of the English page being published. Try another page, or come back later.</span>
-        </template>
-        <template v-else>{{ state.pageError.message }}</template>
-      </div>
+      <div v-else-if="state.pageError" class="state error" role="status">{{ state.pageError.message }}</div>
       <SplitView v-else-if="state.page" :page="state.page" :label="label" :selected-id="selectedId" @pick="onPick" @notice="say" />
       <div v-else class="state welcome">
         <h1>Pick a language and a page</h1>
