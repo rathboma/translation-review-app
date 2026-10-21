@@ -1,39 +1,28 @@
-// GET /api/manifest and GET /api/page: what the frontend needs to pick a page
-// and show it, from the Worker, safe to display.
-import { translationsUrl, type Env } from "./env.ts";
+// GET /api/config and GET /api/page: what the frontend needs to show a page,
+// made safe to display.
+import type { Env } from "./env.ts";
 import { fail, json } from "./http.ts";
 import { sanitizePage } from "./sanitize.ts";
-import { loadAnnotated, loadManifest, WorkerError } from "./worker-api.ts";
-import type { ManifestInfo } from "../shared/types.ts";
+import { loadPage, resolveSite, SiteError } from "./site.ts";
+import type { Config } from "../shared/types.ts";
 
-function upstream(error: unknown): Response {
-  if (error instanceof WorkerError) return fail(502, `Couldn't reach the translations: ${error.message}.`);
-  throw error;
-}
-
-export async function manifestHandler(env: Env): Promise<Response> {
-  try {
-    const manifest = await loadManifest(env);
-    const info: ManifestInfo = { ...manifest, turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? "" };
-    return json(info, 200, { "cache-control": "private, max-age=60" });
-  } catch (error) {
-    return upstream(error);
-  }
+export function configHandler(env: Env): Response {
+  const config: Config = { site: resolveSite(env, null)!, turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? "" };
+  return json(config, 200, { "cache-control": "private, max-age=60" });
 }
 
 export async function pageHandler(request: Request, env: Env): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const lang = params.get("lang") ?? "";
   const path = params.get("path") ?? "";
+  const site = resolveSite(env, params.get("site"));
+  if (!site) return fail(400, "That is not a web address: it should start with https:// (or http://).", { code: "bad-site" });
   try {
-    const manifest = await loadManifest(env);
-    if (!Object.hasOwn(manifest.languages, lang)) return fail(404, `There is no language "${lang}".`, { code: "unknown-language" });
-    if (!manifest.pages.includes(path)) return fail(404, `${path} is not one of the translated pages.`, { code: "unknown-page" });
-    const page = await loadAnnotated(env, lang, path);
-    if (!page) return fail(404, "This page is not translated yet.", { code: "not-translated" });
-    const base = `${translationsUrl(env)}/`;
-    return json({ ...page, english: sanitizePage(page.english, base), translated: sanitizePage(page.translated, base) });
+    const page = await loadPage(site, lang, path);
+    const base = `${site}/`;
+    return json({ lang, path, site, aligned: page.aligned, segments: page.segments, english: sanitizePage(page.english, base), translated: sanitizePage(page.translated, base) });
   } catch (error) {
-    return upstream(error);
+    if (error instanceof SiteError) return fail(error.status, error.message, error.code ? { code: error.code } : {});
+    throw error;
   }
 }

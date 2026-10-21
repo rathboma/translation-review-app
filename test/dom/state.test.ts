@@ -3,7 +3,7 @@ import { beforeEach, test, vi } from "vitest";
 import assert from "node:assert/strict";
 
 const KEY = "translation-review:";
-const good = { id: "n1", lang: "es", path: "/pricing/", key: "Pay once.", scope: null, source: "generated", kind: "html", where: "p", current: "Paga una vez.", new: "Paga una sola vez." };
+const good = { id: "n1", lang: "es", path: "/pricing/", key: "Pay once.", scope: null, kind: "html", where: "p", current: "Paga una vez.", new: "Paga una sola vez." };
 
 // The store reads localStorage when it is first imported.
 async function start(saved: Record<string, unknown>) {
@@ -22,7 +22,7 @@ test("saved notes and reviewer come back", async () => {
 });
 
 test("corrupt saved data is dropped, not a reason for the app not to start", async () => {
-  for (const notes of ["{not json", { not: "a list" }, "null", 7, [null, 5, "x", {}, { ...good, source: "magic" }, { ...good, new: undefined }]]) {
+  for (const notes of ["{not json", { not: "a list" }, "null", 7, [null, 5, "x", {}, { ...good, kind: "magic" }, { ...good, new: undefined }]]) {
     const state = await start({ notes });
     assert.deepEqual(state.notes, [], JSON.stringify(notes));
   }
@@ -46,9 +46,41 @@ test("a plus sign in a page path survives the address", async () => {
 });
 
 test("a language that is a property of every object is not a place to start", async () => {
-  const state = await start({ last: { lang: "constructor", path: "/" } });
-  state.manifest = { site: "x", languages: { es: { lang: "es-MX", label: "Español" } }, pages: ["/"], glossary: {}, turnstileSiteKey: "" };
+  await start({ last: { lang: "constructor", path: "/" } });
   const { startingPlace } = await import("../../src/lib/state.ts");
   assert.deepEqual(startingPlace("?lang=toString&path=/"), { lang: "", path: "" });
   assert.deepEqual(startingPlace("?lang=es&path=/"), { lang: "es", path: "/" });
+});
+
+test("a page can be typed, pasted, or copied from the address bar of a copy", async () => {
+  await start({});
+  const { normalizePath } = await import("../../src/lib/state.ts");
+  assert.equal(normalizePath("/pricing/"), "/pricing/");
+  assert.equal(normalizePath("pricing"), "/pricing");
+  assert.equal(normalizePath("/blog/?page=2"), "/blog/?page=2");
+  assert.equal(normalizePath(" https://www.beekeeperstudio.io/es/pricing/#plans "), "/pricing/");
+  assert.equal(normalizePath("/pt-br/"), "/");
+  assert.equal(normalizePath("/ja"), "/");
+  assert.equal(normalizePath("/jam/"), "/jam/");
+  for (const bad of ["", "   ", "a b", "http://"]) assert.equal(normalizePath(bad), null, JSON.stringify(bad));
+});
+
+test("a site is an origin, or nothing (the default), or not an address", async () => {
+  await start({});
+  const { normalizeSite } = await import("../../src/lib/state.ts");
+  assert.equal(normalizeSite(""), "");
+  assert.equal(normalizeSite("https://pr-1-beekeeper-web.example.workers.dev/es/pricing/?x#y"), "https://pr-1-beekeeper-web.example.workers.dev");
+  assert.equal(normalizeSite("www.beekeeperstudio.io"), "https://www.beekeeperstudio.io");
+  assert.equal(normalizeSite("localhost:8788"), "https://localhost:8788");
+  assert.equal(normalizeSite("http://127.0.0.1:8788/"), "http://127.0.0.1:8788");
+  for (const bad of ["javascript:alert(1)", "ftp://example.com", "file:///etc/passwd", "a b c"]) assert.equal(normalizeSite(bad), null, bad);
+});
+
+test("a link can say which site to read the pages from", async () => {
+  history.replaceState(null, "", "/?lang=es&path=/pricing/&site=https://pr-3-beekeeper-web.example.workers.dev/x");
+  assert.equal((await start({})).site, "https://pr-3-beekeeper-web.example.workers.dev");
+  history.replaceState(null, "", "/?site=javascript:alert(1)");
+  assert.equal((await start({})).site, "");
+  history.replaceState(null, "", "/");
+  assert.equal((await start({})).site, "");
 });

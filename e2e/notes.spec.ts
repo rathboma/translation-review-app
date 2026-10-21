@@ -90,7 +90,7 @@ test("hidden text: the title, the description, alt text and tooltips can be corr
   await editor(page).getByRole("button", { name: "Save note" }).click();
   await page.getByRole("button", { name: /Hidden text/ }).click();
   await expect(page.getByRole("complementary", { name: "Hidden text" }).getByText("has a note")).toBeVisible();
-  expect((await savedNotes(page))[0]).toMatchObject({ kind: "attr", key: "Beekeeper Studio logo", source: "generated", new: "Logotipo de Beekeeper Studio, el editor SQL" });
+  expect((await savedNotes(page))[0]).toMatchObject({ kind: "attr", key: "Beekeeper Studio logo", new: "Logotipo de Beekeeper Studio, el editor SQL" });
 });
 
 test("a string in a shared include says that a change applies on every page", async ({ page }) => {
@@ -107,22 +107,22 @@ test("text the copy left in English can be translated, or confirmed as English",
   await editor(page).getByRole("button", { name: "Keep the English" }).click();
   await expect(editor(page)).toBeHidden();
   const [note] = await savedNotes(page);
-  expect(note).toMatchObject({ source: "english", key: "The Business plan covers your whole team.", new: "The Business plan covers your whole team." });
+  expect(note).toMatchObject({ key: "The Business plan covers your whole team.", current: "The Business plan covers your whole team.", new: "The Business plan covers your whole team." });
 });
 
-test("every source of a translation is filed in the form that applies it, one issue per language", async ({ page }) => {
+test("a note on a shared include is filed for the common file, any other for the page's explicit entries, one issue per language", async ({ page }) => {
   await openPricing(page);
-  // generated: a paragraph the model translated
+  // a paragraph of the page
   await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
-  // common: a link in the shared header
+  // a link in the shared header
   await rewrite(page, translated(page).getByRole("link", { name: "Descargar" }), "Bajar Beekeeper");
-  // explicit: a tooltip from a glob entry in git, through the hidden text drawer
+  // a tooltip, through the hidden text drawer
   await page.getByRole("button", { name: /Hidden text/ }).click();
   await page.getByRole("complementary", { name: "Hidden text" }).getByText("Abre la página de descarga").click();
   await page.keyboard.press("Control+A");
   await page.keyboard.type("Abre la página para descargar");
   await editor(page).getByRole("button", { name: "Save note" }).click();
-  // english: a paragraph the copy still has in English
+  // a paragraph the copy still has in English
   await rewrite(page, translated(page).locator("p", { hasText: "The Business plan" }), "El plan Business cubre a todo tu equipo.");
   // and another language
   await page.getByLabel("Language").selectOption("ja");
@@ -138,32 +138,28 @@ test("every source of a translation is filed in the form that applies it, one is
   expect(github.map((g) => g.body.title)).toEqual(["Translation notes (es): 4 notes from María López", "Translation notes (ja): 1 note from María López"]);
   expect(github.map((g) => g.body.labels)).toEqual([["translation", "lang:es"], ["translation", "lang:ja"]]);
 
-  const es = Object.fromEntries(issueNotes(github[0]).map((n) => [n.source + (n.scope ? `:${n.scope}` : ""), n]));
-  expect(Object.keys(es).sort()).toEqual(["common:header", "english", "explicit", "generated"]);
-  expect(es.generated.apply).toEqual({
-    action: "add-explicit",
+  const es = Object.fromEntries(issueNotes(github[0]).map((n) => [n.key, n]));
+  expect(Object.keys(es).sort()).toEqual(["Download", "Only $99 a year for one user.", "Opens the download page", "The Business plan covers your whole team."]);
+  expect(es["Only $99 a year for one user."].apply).toEqual({
+    action: "set-explicit",
     file: "bin/translations/explicit/es.yml",
     entry: { path: "/pricing/", en: "Only $99 a year for one user.", es: "Solo $99 al año por usuario." },
   });
-  expect(es["common:header"].apply).toEqual({ action: "set-common", file: "bin/translations/common/es.json", set: ["header", "Download", "Bajar Beekeeper"] });
-  // The glob entry that wins is the one to change, not the page.
-  expect(es.explicit.apply).toEqual({
-    action: "replace-explicit",
-    file: "bin/translations/explicit/es.yml",
-    entry: { path: "/pricing/**", en: "Opens the download page", es: "Abre la página para descargar" },
-  });
-  expect(es.english.apply).toEqual({
-    action: "add-explicit",
+  expect(es.Download.scope).toBe("header");
+  expect(es.Download.apply).toEqual({ action: "set-common", file: "bin/translations/common/es.json", set: ["header", "Download", "Bajar Beekeeper"] });
+  expect(es["Opens the download page"].apply).toMatchObject({ action: "set-explicit", entry: { path: "/pricing/", en: "Opens the download page", es: "Abre la página para descargar" } });
+  expect(es["The Business plan covers your whole team."].current).toBe("The Business plan covers your whole team.");
+  expect(es["The Business plan covers your whole team."].apply).toEqual({
+    action: "set-explicit",
     file: "bin/translations/explicit/es.yml",
     entry: { path: "/pricing/", en: "The Business plan covers your whole team.", es: "El plan Business cubre a todo tu equipo." },
   });
-  expect(es.english.current).toBe("The Business plan covers your whole team.");
-  expect(es["common:header"].path).toBe("/pricing/");
+  expect(es.Download.path).toBe("/pricing/");
   expect(github[0].body.body).toContain("the site header: the change applies on every page");
 
   const [ja] = issueNotes(github[1]);
   expect(ja.apply).toEqual({
-    action: "add-explicit",
+    action: "set-explicit",
     file: "bin/translations/explicit/ja.yml",
     entry: { path: "/pricing/", en: "Pay once, use the paid features forever.", ja: "一度のお支払いで、有料機能を永久にご利用いただけます。" },
   });
@@ -173,7 +169,7 @@ test("every source of a translation is filed in the form that applies it, one is
 test("a broken translation is refused, with the reason shown next to its note, and nothing is filed", async ({ page }) => {
   await openPricing(page);
   await page.evaluate(() => {
-    const note = (id: string, key: string, current: string, next: string) => ({ id, lang: "es", path: "/pricing/", key, scope: null, source: "generated", kind: "html", where: 'p, under "Pricing"', current, new: next });
+    const note = (id: string, key: string, current: string, next: string) => ({ id, lang: "es", path: "/pricing/", key, scope: null, kind: "html", where: 'p, under "Pricing"', current, new: next });
     const PAY = "Paga una vez, usa las funciones de pago para siempre.";
     localStorage.setItem(
       "translation-review:notes",
@@ -187,7 +183,7 @@ test("a broken translation is refused, with the reason shown next to its note, a
   await page.reload();
   await pageShown(page);
   await expect(queueToggle(page)).toContainText("3");
-  const before = (await calls()).worker.length;
+  const before = (await calls()).site.length;
   await submitAll(page);
   await expect(dialog(page).getByRole("alert")).toContainText("Some translations need fixing");
   await dialog(page).getByRole("button", { name: "Close" }).click();
@@ -199,10 +195,10 @@ test("a broken translation is refused, with the reason shown next to its note, a
   await expect(price).toContainText("numbers missing from the translation: 99");
   await expect(page.locator('.note[data-note="fine"]')).not.toContainText("markup differs");
   await expect(page.locator(".queue-head .error-count")).toHaveText("2 to fix");
-  const { github, worker } = await calls();
+  const { github, site } = await calls();
   expect(github).toHaveLength(0);
-  // The manifest, for the lint, is all it asked: no page was fetched to check them.
-  expect(worker.slice(before).filter((c) => c.path.startsWith("/_translations/annotated"))).toEqual([]);
+  // The notes say what the translator saw: no page is fetched to check them.
+  expect(site).toHaveLength(before);
 
   // Fix one, and only the other is left to fix.
   await lost.getByRole("button", { name: "Edit" }).click();
@@ -214,19 +210,6 @@ test("a broken translation is refused, with the reason shown next to its note, a
   await page.keyboard.type("Consulta la");
   await editor(page).getByRole("button", { name: /Update note/ }).click();
   await expect(page.locator(".queue-head .error-count")).toHaveText("1 to fix");
-});
-
-test("a note whose English has gone from the page is filed as stale", async ({ page }) => {
-  await openPricing(page);
-  await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
-  // Meanwhile the English page changes: that sentence is no longer on it.
-  await control({ removeSegment: { page: "es /pricing/", key: "Only $99 a year for one user." } });
-  await submitAll(page);
-  await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
-  const { github } = await calls();
-  const [note] = issueNotes(github[0]);
-  expect(note.stale).toBe(true);
-  expect(github[0].body.body).toContain("**Stale:** this English text is no longer on the page. Skip this note.");
 });
 
 test("when GitHub fails part way, the notes already filed leave the queue and the others stay", async ({ page }) => {
@@ -319,7 +302,7 @@ test("more notes than one submission holds: the first hundred are sent, the rest
   await openPricing(page);
   await page.evaluate(() => {
     const notes = Array.from({ length: 105 }, (_, i) => ({
-      id: `n${i}`, lang: "es", path: "/pricing/", key: `Gone ${i}`, scope: null, source: "generated", kind: "html", where: "p", current: `Se fue ${i}`, new: `Se fue de verdad ${i}`,
+      id: `n${i}`, lang: "es", path: "/pricing/", key: `Gone ${i}`, scope: null, kind: "html", where: "p", current: `Se fue ${i}`, new: `Se fue de verdad ${i}`,
     }));
     localStorage.setItem("translation-review:notes", JSON.stringify(notes));
   });
@@ -332,8 +315,6 @@ test("more notes than one submission holds: the first hundred are sent, the rest
   await dialog(page).getByRole("button", { name: "Submit 100 notes" }).click();
   await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
   await expect(dialog(page)).toContainText("5 more notes are still in your queue");
-  // They are about English that isn't on the page: filed as stale, and the translator is told.
-  await expect(dialog(page)).toContainText("100 of the notes were filed as stale");
   await dialog(page).getByRole("button", { name: "Done" }).click();
   expect(await savedNotes(page)).toHaveLength(5);
   const { github } = await calls();
@@ -341,33 +322,7 @@ test("more notes than one submission holds: the first hundred are sent, the rest
   expect(github.flatMap((g) => issueNotes(g)).length).toBe(100);
 });
 
-test("a stale note is reported to the translator", async ({ page }) => {
-  await openPricing(page);
-  await rewrite(page, translated(page).locator("p", { hasText: "Solo $99" }), "Solo $99 al año por usuario.");
-  await control({ removeSegment: { page: "es /pricing/", key: "Only $99 a year for one user." } });
-  await submitAll(page);
-  await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
-  await expect(dialog(page)).toContainText("1 of the notes was filed as stale");
-});
-
-test("a note that says what the page says already is refused, with the reason beside it", async ({ page }) => {
-  await openPricing(page);
-  await page.evaluate(() => {
-    localStorage.setItem("translation-review:notes", JSON.stringify([
-      { id: "moot", lang: "es", path: "/pricing/", key: "Only $99 a year for one user.", scope: null, source: "generated", kind: "html", where: "p", current: "Solo $99 por año.", new: "Solo $99 al año para un usuario." },
-    ]));
-  });
-  await page.reload();
-  await pageShown(page);
-  await submitAll(page);
-  await expect(dialog(page).getByRole("alert")).toContainText("Some notes need fixing");
-  await dialog(page).getByRole("button", { name: "Close" }).click();
-  await openQueue(page);
-  await expect(page.locator('.note[data-note="moot"]')).toContainText("already the current translation");
-  expect((await calls()).github).toHaveLength(0);
-});
-
-test("no secret reaches the browser, and the Worker is only asked with its token", async ({ page }) => {
+test("no secret reaches the browser", async ({ page }) => {
   const bodies: string[] = [];
   page.on("response", async (response) => {
     if (response.url().includes("/api/")) bodies.push(await response.text().catch(() => ""));
@@ -377,14 +332,12 @@ test("no secret reaches the browser, and the Worker is only asked with its token
   await submitAll(page);
   await expect(dialog(page).getByRole("heading", { name: "Thank you!" })).toBeVisible();
   expect(bodies.length).toBeGreaterThan(2);
-  for (const secret of ["e2e-token", "gh-e2e-token", "ts-e2e-secret"]) {
+  for (const secret of ["gh-e2e-token", "ts-e2e-secret"]) {
     for (const body of bodies) expect(body).not.toContain(secret);
     // Nor is it in the app that was sent.
     for (const file of readdirSync("dist/assets")) expect(readFileSync(`dist/assets/${file}`, "utf8")).not.toContain(secret);
   }
-  const { worker, github } = await calls();
-  expect(worker.length).toBeGreaterThan(0);
-  expect(worker.every((c) => c.authorization === "Bearer e2e-token")).toBe(true);
+  const { github } = await calls();
   expect(github.every((g) => g.authorization === "Bearer gh-e2e-token")).toBe(true);
   expect(JSON.stringify(github)).not.toContain("maria@example.com");
 });
@@ -392,7 +345,7 @@ test("no secret reaches the browser, and the Worker is only asked with its token
 test("the sixth submission an hour from one address is refused, and the notes stay", async ({ page, request }) => {
   const ip = "203.0.113.77";
   violations = await prepare(page, ip);
-  const note = (id: string) => ({ id, lang: "es", path: "/pricing/", key: "Pay once, use the paid features forever.", scope: null, source: "generated", kind: "html", where: "p", current: PAY, new: `Paga una sola vez ${id}, usa las funciones de pago para siempre.` });
+  const note = (id: string) => ({ id, lang: "es", path: "/pricing/", key: "Pay once, use the paid features forever.", scope: null, kind: "html", where: "p", current: PAY, new: `Paga una sola vez ${id}, usa las funciones de pago para siempre.` });
   for (let i = 0; i < 5; i++) {
     const response = await request.post("/api/submit", { data: { name: "Rate Test", email: "rate@example.com", turnstileToken: "mock-token", notes: [note(`n${i}`)] }, headers: { "cf-connecting-ip": ip } });
     expect(response.status(), `submission ${i + 1}`).toBe(200);
@@ -410,7 +363,7 @@ test("tags in the wrong order pass the Worker's lint, and are an error in the qu
   // The same tags as the English, so the lint, which compares them as a list, is content.
   await page.evaluate(() => {
     localStorage.setItem("translation-review:notes", JSON.stringify([
-      { id: "crossed", lang: "es", path: "/pricing/", key: 'Read the <a href="/docs">documentation</a> and <strong>start for free</strong>.', scope: null, source: "generated", kind: "html", where: "p",
+      { id: "crossed", lang: "es", path: "/pricing/", key: 'Read the <a href="/docs">documentation</a> and <strong>start for free</strong>.', scope: null, kind: "html", where: "p",
         current: 'Lee la <a href="/docs">documentación</a> y <strong>empieza gratis</strong>.', new: 'Lee la documentación</a><a href="/docs"> y <strong>empieza gratis</strong>.' },
     ]));
   });

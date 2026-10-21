@@ -4,7 +4,7 @@ import yaml from "js-yaml";
 export const MOCK = "http://127.0.0.1:8799";
 
 export interface Calls {
-  worker: { path: string; authorization: string | null }[];
+  site: { path: string; headers: Record<string, string | string[] | undefined> }[];
   github: { repo: string; authorization: string | null; body: { title: string; body: string; labels: string[] } }[];
   turnstile: { raw: string }[];
 }
@@ -116,12 +116,11 @@ export async function openQueue(page: Page): Promise<void> {
 // What is selected in the page (the editor's text box has the focus).
 export const selectedText = (page: Page) => page.evaluate(() => window.getSelection()?.toString() ?? "");
 
-export async function pickPage(page: Page, language: string, query: string): Promise<void> {
+export async function pickPage(page: Page, language: string, path: string): Promise<void> {
   await page.getByLabel("Language").selectOption(language);
-  const picker = page.getByRole("combobox", { name: "Page" });
-  await picker.click();
-  await picker.fill(query);
-  await page.keyboard.press("Enter");
+  const picker = page.getByRole("textbox", { name: "Page" });
+  await picker.fill(path);
+  await picker.press("Enter");
 }
 
 // The machine-readable block of a filed issue.
@@ -144,10 +143,10 @@ export const savedNotes = (page: Page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem("translation-review:notes") ?? "[]") as Record<string, any>[]);
 
 // The translation page, as a reviewer opens it.
-export async function openPricing(page: Page, language = "es", query = "pric"): Promise<void> {
+export async function openPricing(page: Page, language = "es", path = "/pricing/"): Promise<void> {
   await page.goto("/");
   await signIn(page);
-  await pickPage(page, language, query);
+  await pickPage(page, language, path);
   await (language === "ja" ? pageShown(page, "一度のお支払い", "日本語") : pageShown(page));
 }
 

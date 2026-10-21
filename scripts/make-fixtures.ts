@@ -1,13 +1,13 @@
-// Writes e2e/fixtures/*.json: what the translation Worker's
-// GET /_translations/annotated and /_translations/manifest answer for a small
-// site, made by the Worker's own render() and annotate() (the end to end tests
-// serve these from a mock Worker, so the pages they show are real output).
+// Writes e2e/fixtures/*.html: the pages of a small site, in English and as the
+// translation Worker serves them in Spanish and Japanese, made by the Worker's
+// own render() (the end to end tests serve these from a mock site, so the pages
+// they show are real output).
 //
-//   node --experimental-strip-types worker/make-fixtures.ts --worker <web>/workers/translate
+//   node --experimental-strip-types scripts/make-fixtures.ts --worker <web>/workers/translate
 //
-// (with worker/annotated-endpoint.patch applied there, and `yarn install` run).
-// Run it again, and commit the result, when the Worker's output changes shape.
-import { mkdirSync, writeFileSync } from "node:fs";
+// (after `yarn install` there). Run it again, and commit the result, when the
+// Worker's output changes shape.
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 
@@ -22,7 +22,6 @@ const { render } = await load("render.ts");
 const { FixtureTranslator } = await load("claude.ts");
 const { MemorySegmentStore } = await load("store.ts");
 const { Layer } = await load("resolve.ts");
-const { annotate } = await load("annotate.ts");
 
 const SITE = "https://www.beekeeperstudio.io";
 const DIGEST = "a".repeat(64);
@@ -125,17 +124,17 @@ const ja: Record<string, string> = {
   ...Object.fromEntries(filler.map((n) => [`Feature ${n}: a handy tool for your database work.`, `機能 ${n}: データベース作業に役立つ道具。`])),
 };
 
-async function annotated(html: string, path: string, lang: string, strings: Record<string, string>) {
+async function translated(html: string, path: string, lang: string, strings: Record<string, string>): Promise<string> {
   const result = await render({ html, path, lang, manifest, store: new MemorySegmentStore(), translator: new FixtureTranslator(strings) });
-  const page = annotate(html, result.segments, new Layer(manifest, lang, path));
-  return { lang, path, fingerprint: result.fingerprint, ...page };
+  return result.html;
 }
 
 mkdirSync(out, { recursive: true });
-const write = (name: string, data: unknown) => writeFileSync(join(out, name), JSON.stringify(data, null, 1) + "\n");
-write("manifest.json", manifest);
+for (const old of readdirSync(out)) rmSync(join(out, old));
+const write = (name: string, text: string) => writeFileSync(join(out, name), text.endsWith("\n") ? text : `${text}\n`);
 write("pricing.en.html", pricing());
-write("pricing.es.json", await annotated(pricing(), "/pricing/", "es", es));
-write("pricing.ja.json", await annotated(pricing(), "/pricing/", "ja", ja));
-write("home.es.json", await annotated(home(), "/", "es", es));
+write("pricing.es.html", await translated(pricing(), "/pricing/", "es", es));
+write("pricing.ja.html", await translated(pricing(), "/pricing/", "ja", ja));
+write("home.en.html", home());
+write("home.es.html", await translated(home(), "/", "es", es));
 console.log(`wrote ${out}`);

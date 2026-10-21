@@ -1,9 +1,7 @@
 // A fake world for the Functions: an in-memory KV and the three services they
-// call (the translation Worker, Turnstile, GitHub), recorded.
+// call (the site whose pages are reviewed, Turnstile, GitHub), recorded.
 import { vi } from "vitest";
 import type { Env } from "../server/env.ts";
-import { forgetManifest } from "../server/worker-api.ts";
-import type { AnnotatedPage, Segment } from "../shared/types.ts";
 
 export class MemoryKV {
   data = new Map<string, string>();
@@ -20,17 +18,16 @@ export class MemoryKV {
   }
 }
 
-export const WORKER = "http://worker.test";
+export const SITE = "http://site.test";
 export const GITHUB = "http://github.test";
 export const TURNSTILE = "http://turnstile.test/verify";
 
 export function env(overrides: Partial<Env> = {}): Env & { REVIEWERS: MemoryKV } {
   return {
     REVIEWERS: new MemoryKV() as unknown as KVNamespace,
-    TRANSLATIONS_TOKEN: "worker-token",
     GITHUB_TOKEN: "gh-token",
     TURNSTILE_SECRET: "ts-secret",
-    TRANSLATIONS_URL: WORKER,
+    TRANSLATIONS_URL: SITE,
     GITHUB_REPO: "beekeeper-studio/web",
     GITHUB_API_URL: GITHUB,
     TURNSTILE_VERIFY_URL: TURNSTILE,
@@ -39,74 +36,50 @@ export function env(overrides: Partial<Env> = {}): Env & { REVIEWERS: MemoryKV }
   } as Env & { REVIEWERS: MemoryKV };
 }
 
-export const manifest = () => ({
-  site: "https://www.beekeeperstudio.io",
-  english: { lang: "en", locale: "en_US", hreflang: ["en"], label: "English" },
-  languages: {
-    es: { lang: "es-MX", locale: "es_MX", hreflang: ["es"], label: "Español" },
-    "pt-br": { lang: "pt-BR", locale: "pt_BR", hreflang: ["pt-BR"], label: "Português" },
-    ja: { lang: "ja", locale: "ja_JP", hreflang: ["ja"], label: "日本語" },
-  },
-  live: true,
-  pages: ["/", "/pricing/", "/get"],
-  common: { es: { footer: { Blog: "Blog" } } },
-  explicit: { es: [] },
-  glossary: { keep: ["Beekeeper Studio"], terms: { Download: { es: "Descarga" } } },
-});
+// A built page and its Spanish copy, as the site serves them: a heading, a
+// paragraph, a paragraph with a link, the footer include, an image with a title,
+// and a head.
+export const PRICING_EN = `<!DOCTYPE html><html lang="en"><head><title>Pricing plans</title><meta name="description" content="What it costs.">
+<script src="/a.js"></script></head><body onload="x()">
+<h1>Pricing</h1>
+<p>Pay once, use the paid features forever.</p>
+<p>Get <a href="/get">Beekeeper Studio</a> now</p>
+<p>Pay once, use the paid features forever.</p>
+<img src="/i.png" alt="The editor">
+<footer data-i18n-scope="footer"><a href="/blog">Blog</a></footer>
+</body></html>`;
 
-export function segment(overrides: Partial<Segment> = {}): Segment {
-  return {
-    id: "s1",
-    key: "Pay once, use the paid features forever.",
-    kind: "html",
-    where: 'p, under "Pricing"',
-    scope: null,
-    source: "generated",
-    translation: "Paga una vez, usa las funciones de pago para siempre.",
-    ...overrides,
-  };
-}
+export const PRICING_ES = `<!DOCTYPE html><html lang="es-MX"><head><title>Planes y precios</title><meta name="description" content="Lo que cuesta.">
+<script src="/a.js"></script></head><body onload="x()">
+<h1>Precios</h1>
+<p>Paga una vez, usa las funciones de pago para siempre.</p>
+<p>Obtén <a href="/get">Beekeeper Studio</a> ya</p>
+<p>Paga una vez, usa las funciones de pago para siempre.</p>
+<img src="/i.png" alt="El editor">
+<footer data-i18n-scope="footer"><a href="/blog">Blog</a></footer>
+</body></html>`;
 
-export function annotated(lang: string, path: string, segments: Segment[] = [segment()], extra: Partial<AnnotatedPage> = {}): AnnotatedPage {
-  return {
-    lang,
-    path,
-    fingerprint: `fp-${lang}-${path.replace(/\W/g, "")}`,
-    english: '<!DOCTYPE html><html><head><title>Pricing</title><script src="/a.js"></script></head><body><p data-seg="s1" onclick="x()">Pay once, use the paid features forever.</p></body></html>',
-    translated: '<!DOCTYPE html><html><head><title>Precios</title></head><body><p data-seg="s1">Paga una vez, usa las funciones de pago para siempre.</p></body></html>',
-    segments,
-    ...extra,
-  };
-}
+type Served = string | { status: number } | { redirectedTo: string; html: string };
 
 export interface World {
-  worker: { calls: { url: URL; authorization: string | null }[]; pages: Record<string, AnnotatedPage | null>; manifest: ReturnType<typeof manifest>; down: boolean };
+  // What a site is asked: every url fetched, and the headers sent with it.
+  site: { calls: { url: URL; headers: Headers }[]; pages: Record<string, Served>; down: boolean };
   turnstile: { calls: { secret: string; response: string; remoteip: string | null }[]; pass: boolean };
   github: { calls: { url: string; authorization: string | null; body: { title: string; body: string; labels: string[] } }[]; fail: (call: number) => boolean; nextNumber: number };
 }
 
-// Replaces fetch with the fake services. Pages not given are "not translated yet".
-export function world(pages: Record<string, AnnotatedPage | null> = {}): World {
-  forgetManifest();
+// Replaces fetch with the fake services. Any host that is not GitHub or Turnstile
+// is a site, serving `pages` by path (a path it doesn't have is a 404).
+export function world(pages: Record<string, Served> = { "/pricing/": PRICING_EN, "/es/pricing/": PRICING_ES }): World {
   const w: World = {
-    worker: { calls: [], pages, manifest: manifest(), down: false },
+    site: { calls: [], pages, down: false },
     turnstile: { calls: [], pass: true },
     github: { calls: [], fail: () => false, nextNumber: 100 },
   };
+  const html = (body: string) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
   vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
     const headers = new Headers(init?.headers);
-    if (url.origin === WORKER) {
-      w.worker.calls.push({ url, authorization: headers.get("authorization") });
-      if (w.worker.down) throw new TypeError("connection refused");
-      if (headers.get("authorization") !== "Bearer worker-token") return Response.json({ error: "unauthorized" }, { status: 401 });
-      if (url.pathname === "/_translations/manifest") return Response.json(w.worker.manifest);
-      if (url.pathname === "/_translations/annotated") {
-        const page = w.worker.pages[`${url.searchParams.get("lang")} ${url.searchParams.get("path")}`];
-        return page ? Response.json(page) : Response.json({ error: "not translated yet" }, { status: 404 });
-      }
-      return Response.json({ error: "not found" }, { status: 404 });
-    }
     if (url.href === TURNSTILE) {
       const form = init?.body as FormData;
       w.turnstile.calls.push({ secret: String(form.get("secret")), response: String(form.get("response")), remoteip: form.get("remoteip") as string | null });
@@ -119,7 +92,16 @@ export function world(pages: Record<string, AnnotatedPage | null> = {}): World {
       const number = w.github.nextNumber++;
       return Response.json({ number, html_url: `https://github.com/beekeeper-studio/web/issues/${number}` }, { status: 201 });
     }
-    throw new Error(`unexpected fetch ${url}`);
+    w.site.calls.push({ url, headers });
+    if (w.site.down) throw new TypeError("connection refused");
+    const served = w.site.pages[url.pathname + url.search];
+    if (served === undefined) return new Response("<html><body>Not found</body></html>", { status: 404, headers: { "content-type": "text/html" } });
+    if (typeof served === "string") return html(served);
+    if ("status" in served) return new Response("", { status: served.status });
+    // A redirect that was followed: the page it led to, at that address.
+    const response = html(served.html);
+    Object.defineProperty(response, "url", { value: new URL(served.redirectedTo, url).href });
+    return response;
   });
   return w;
 }

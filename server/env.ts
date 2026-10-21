@@ -4,10 +4,10 @@ export interface Env {
   // submission log.
   REVIEWERS: KVNamespace;
   // Secrets.
-  TRANSLATIONS_TOKEN: string;
   GITHUB_TOKEN: string;
   TURNSTILE_SECRET: string;
   // Variables.
+  // The site whose pages are reviewed unless another is asked for.
   TRANSLATIONS_URL?: string;
   GITHUB_REPO?: string;
   TURNSTILE_SITE_KEY?: string;

@@ -54,10 +54,8 @@ test("each note's fields must be present", () => {
     const { errors } = parseNote({ ...note(), [field]: undefined });
     assert.ok(errors.some((e) => e.startsWith(`${field} is missing`)), `${field}: ${errors}`);
   }
-  assert.ok(parseNote({ ...note(), source: "magic" }).errors[0].includes("source"));
   assert.ok(parseNote({ ...note(), id: "has spaces" }).errors[0].includes("id"));
   assert.ok(parseNote({ ...note(), path: "pricing" }).errors[0].includes("path"));
-  assert.ok(parseNote({ ...note(), source: "common", scope: null }).errors[0].includes("scope"));
   assert.ok(parseNote({ ...note(), lang: 7 }).errors[0].includes("lang"));
 });
 
@@ -65,7 +63,7 @@ test("a note must change something, unless it confirms English for an untranslat
   const same = refused(body({ notes: [note({ new: note().current })] }));
   assert.match(same.notes![0].errors[0], /same as the current/);
   assert.match(refused(body({ notes: [note({ new: "  " })] })).notes![0].errors[0], /empty/);
-  assert.ok(parseSubmission(body({ notes: [note({ source: "english", current: "Blog", key: "Blog", new: "Blog" })] })).ok);
+  assert.ok(parseSubmission(body({ notes: [note({ current: "Blog", key: "Blog", new: "Blog" })] })).ok);
 });
 
 test("two notes about the same text, or with the same id, are refused", () => {

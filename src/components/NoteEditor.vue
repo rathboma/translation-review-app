@@ -5,7 +5,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { normalize } from "../../vendor/translate/text.ts";
 import { scopeLabel } from "../../shared/apply.ts";
-import { closeEditor, deleteNote, saveNote, state, verdict as check, type Draft, type Editing } from "../lib/state.ts";
+import { closeEditor, deleteNote, languageLabel, saveNote, state, verdict as check, type Draft, type Editing } from "../lib/state.ts";
 import ChipEditor from "./ChipEditor.vue";
 import ChipText from "./ChipText.vue";
 
@@ -17,12 +17,14 @@ const card = ref<HTMLElement | null>(null);
 const editor = ref<InstanceType<typeof ChipEditor> | null>(null);
 const confirmDelete = ref(false);
 
-const language = computed(() => state.manifest?.languages[draft.lang]?.label ?? draft.lang);
+const language = computed(() => languageLabel(draft.lang));
+// The copy has the English there.
+const untranslated = computed(() => draft.current === draft.key);
 const verdict = computed(() => check(draft));
 // Keeping the English is an answer for a string the copy has not translated.
-const changed = computed(() => normalize(draft.new) !== draft.current || draft.source === "english");
+const changed = computed(() => normalize(draft.new) !== draft.current || untranslated.value);
 const canSave = computed(() => changed.value && verdict.value.errors.length === 0);
-const keepsEnglish = computed(() => draft.source === "english" && normalize(draft.new) === draft.current);
+const keepsEnglish = computed(() => untranslated.value && normalize(draft.new) === draft.current);
 
 const WIDTH = 480;
 
@@ -95,16 +97,15 @@ onBeforeUnmount(() => card.value?.removeEventListener("keydown", onKeydown));
         <button class="icon" type="button" aria-label="Close" @click="closeEditor">×</button>
       </header>
       <p class="where">{{ draft.where }}</p>
-      <p v-if="draft.scope && draft.source === 'common'" class="notice scope">This text is in {{ scopeLabel(draft.scope) }}: a change applies on every page.</p>
-      <p v-else-if="draft.scope" class="notice scope">This text is in {{ scopeLabel(draft.scope) }}, but it is translated for this page only.</p>
-      <p v-if="draft.source === 'english'" class="notice">The copy still has English here: there is no translation yet.</p>
+      <p v-if="draft.scope" class="notice scope">This text is in {{ scopeLabel(draft.scope) }}: a change applies on every page.</p>
+      <p v-if="untranslated" class="notice">The copy still has English here: there is no translation yet.</p>
 
       <div class="field">
         <span class="label">English</span>
         <div class="readonly" lang="en"><ChipText :text="draft.key" :html="html" /></div>
       </div>
       <div class="field">
-        <span class="label">{{ draft.source === "english" ? "Now (English)" : "Current translation" }}</span>
+        <span class="label">{{ untranslated ? "Now (English)" : "Current translation" }}</span>
         <div class="readonly"><ChipText :text="draft.current" :html="html" /></div>
       </div>
       <div class="field">

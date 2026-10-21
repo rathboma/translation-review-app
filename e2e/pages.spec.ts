@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { english, frameOf, openPricing, pageShown, prepare, signIn, translated } from "./helpers.ts";
+import { control, english, frameOf, MOCK, openPricing, pageShown, prepare, signIn, translated } from "./helpers.ts";
 
 let violations: string[];
 test.beforeEach(async ({ page }) => {
@@ -56,48 +56,121 @@ test("a deep link opens that page, and the last choice is remembered", async ({ 
   await signIn(page);
   await expect(translated(page, "日本語").locator("p", { hasText: "一度のお支払い" }).first()).toBeVisible();
   await expect(page.getByLabel("Language")).toHaveValue("ja");
-  await expect(page.getByRole("combobox", { name: "Page" })).toHaveValue("/pricing/");
+  await expect(page.getByRole("textbox", { name: "Page" })).toHaveValue("/pricing/");
 
   await page.goto("/");
   await expect(translated(page, "日本語").locator("p", { hasText: "一度のお支払い" }).first()).toBeVisible();
   await expect(page).toHaveURL(/\?lang=ja&path=\/pricing\//);
 });
 
-test("a link to a page that isn't there falls back to picking one", async ({ page }) => {
+test("a link to a page the site doesn't have says so, and the next page can still be opened", async ({ page }) => {
   await page.goto("/?lang=es&path=/nope/");
   await signIn(page);
-  await expect(page.getByRole("heading", { name: "Pick a language and a page" })).toBeVisible();
+  await expect(page.getByText(`The English page, ${MOCK}/nope/, answered 404.`)).toBeVisible();
   await expect(page.getByLabel("Language")).toHaveValue("es");
-});
-
-test("a page with no copy yet says so, in a way that isn't an error", async ({ page }) => {
-  await page.goto("/?lang=es&path=/get");
-  await signIn(page);
-  await expect(page.getByText("This page isn't translated yet.")).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
-  // And the next page can still be opened.
-  const picker = page.getByRole("combobox", { name: "Page" });
-  await picker.click();
-  await picker.fill("pric");
+  await page.getByRole("textbox", { name: "Page" }).fill("/pricing/");
   await page.keyboard.press("Enter");
   await pageShown(page);
 });
 
-test("the page picker searches, and says when nothing matches", async ({ page }) => {
+test("a page with no copy says so, and shows nothing", async ({ page }) => {
+  await page.goto("/?lang=es&path=/get");
+  await signIn(page);
+  await expect(page.getByText(/There is no Español copy of \/get/)).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Page" }).fill("/pricing/");
+  await page.keyboard.press("Enter");
+  await pageShown(page);
+});
+
+test("a page is typed, or pasted as an address, and a bad one is marked", async ({ page }) => {
   await page.goto("/");
   await signIn(page);
   await page.getByLabel("Language").selectOption("es");
-  const picker = page.getByRole("combobox", { name: "Page" });
-  await picker.click();
-  const options = page.getByRole("listbox").getByRole("option");
-  await expect(options).toHaveText(["/", "/pricing/", "/get"]);
-  await picker.fill("ge");
-  await expect(options).toHaveText(["/get"]);
-  await picker.fill("zzz");
-  await expect(page.getByText("No page matches")).toBeVisible();
-  await picker.fill("");
-  await options.getByText("/", { exact: true }).click();
+  const picker = page.getByRole("textbox", { name: "Page" });
+  await picker.fill("pricing/");
+  await picker.press("Enter");
+  await pageShown(page);
+  await expect(picker).toHaveValue("/pricing/");
+
+  // The address of the copy, as it is in the address bar: its English page is shown.
+  await picker.fill(`${MOCK}/es/pricing/#plans`);
+  await picker.press("Enter");
+  await pageShown(page);
+  await expect(picker).toHaveValue("/pricing/");
+  await expect(page).toHaveURL(/\?lang=es&path=\/pricing\//);
+
+  await picker.fill("two words");
+  await picker.press("Enter");
+  await expect(picker).toHaveAttribute("aria-invalid", "true");
+  // What was typed and not opened is not kept.
+  await page.getByLabel("Language").focus();
+  await expect(picker).toHaveValue("/pricing/");
+  await expect(picker).toHaveAttribute("aria-invalid", "false");
+
+  await picker.fill("/");
+  await picker.press("Enter");
   await expect(translated(page).locator("h1")).toHaveText("El editor SQL que vas a querer");
+});
+
+test("the site is the default one until another is typed, and the address says which", async ({ page }) => {
+  await openPricing(page);
+  const site = page.getByRole("textbox", { name: "Site" });
+  await expect(site).toHaveValue(MOCK);
+  await expect(page).not.toHaveURL(/site=/);
+
+  // A site that isn't there: the error is the site's, and the link carries the site.
+  await site.fill("http://127.0.0.1:1");
+  await site.press("Enter");
+  await expect(page.getByText(/Couldn't reach http:\/\/127\.0\.0\.1:1\/pricing\//)).toBeVisible();
+  await expect(page).toHaveURL(/site=http%3A%2F%2F127\.0\.0\.1%3A1/);
+  await expect(site).toHaveValue("http://127.0.0.1:1");
+
+  // Back to the default: the page is shown again, from the site.
+  await site.fill("");
+  await site.press("Enter");
+  await pageShown(page);
+  await expect(site).toHaveValue(MOCK);
+  await expect(page).not.toHaveURL(/site=/);
+
+  // Not an address: said so, and nothing changes.
+  await site.fill("not an address");
+  await site.press("Enter");
+  await expect(page.getByText("That is not a web address.")).toBeVisible();
+  await expect(site).toHaveValue(MOCK);
+  await expect(translated(page).locator("h1")).toBeVisible();
+});
+
+test("a link can name the site, which is kept in the address", async ({ page }) => {
+  await page.goto("/?lang=es&path=/pricing/&site=http://127.0.0.1:1");
+  await signIn(page);
+  await expect(page.getByText(/Couldn't reach http:\/\/127\.0\.0\.1:1\/pricing\//)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Site" })).toHaveValue("http://127.0.0.1:1");
+  await page.reload();
+  await expect(page.getByText(/Couldn't reach http:\/\/127\.0\.0\.1:1\/pricing\//)).toBeVisible();
+});
+
+test("a copy that doesn't line up with the English page is shown, with a notice, and no translations on it", async ({ page }) => {
+  // The site's Spanish copy of the pricing page is another page: the English was changed after it was made.
+  await control({ serve: { "/es/pricing/": "home.es.html" } });
+  await page.goto("/?lang=es&path=/pricing/");
+  await signIn(page);
+  await expect(page.getByRole("status").filter({ hasText: "doesn't line up with the English page" })).toBeVisible();
+  await expect(translated(page).locator("h1")).toHaveText("El editor SQL que vas a querer");
+  // Clicking the English still opens an editor, with the English as what is there now.
+  await english(page).locator("p", { hasText: "Only $99" }).click();
+  await expect(page.getByRole("dialog", { name: "Note" })).toContainText("The copy still has English here");
+});
+
+test("the pages are fetched from the site with nothing but a request for a page", async ({ page }) => {
+  await openPricing(page);
+  const { site } = await (await import("./helpers.ts")).calls();
+  expect(site.map((c) => c.path).sort()).toEqual(["/es/pricing/", "/pricing/"]);
+  for (const call of site) {
+    expect(call.headers.authorization).toBeUndefined();
+    expect(call.headers.cookie).toBeUndefined();
+  }
 });
 
 test("hovering a segment lights it and its counterpart on the other page", async ({ page }) => {
