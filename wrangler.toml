@@ -16,27 +16,12 @@ compatibility_flags = ["nodejs_compat"]
 TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
 # Where issues are filed.
 GITHUB_REPO = "beekeeper-studio/web"
-# Public. This is Cloudflare's always-passes testing key: replace it (and the
-# TURNSTILE_SECRET) with the real widget's before launch.
+# Public: the Turnstile widget's site key (its secret is TURNSTILE_SECRET).
 TURNSTILE_SITE_KEY = "0x4AAAAAAFfXLN2oRn2wQs6m"
 
 # Reviewers' name, email and issue numbers (never put in an issue) and the
 # per-IP submission counters. Create it with `wrangler kv namespace create
 # REVIEWERS` and put the id here.
 [[kv_namespaces]]
-binding = "translation-review"
+binding = "REVIEWERS"
 id = "f3da0de841984227b29e2b3a540e84dc"
-
-# Pull request previews (every deployment not from main). Pages needs vars and
-# kv_namespaces for an environment given together, and once this file is the
-# source of truth they can't be edited in the dashboard. A preview gets its own
-# KV namespace, and files its issues on a scratch repository (replace it), so
-# trying a branch never puts anything in the real one.
-[env.preview.vars]
-TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
-GITHUB_REPO = "OWNER/SCRATCH-REPO"
-TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
-
-[[env.preview.kv_namespaces]]
-binding = "translation-review-preview"
-id = "35fa9ac52c7d44e493ee5d8ca5716bc5"

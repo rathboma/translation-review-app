@@ -154,14 +154,12 @@ if the Worker's have changed (CI runs that weekly).
    `npx wrangler pages project create translation-review --production-branch main`.
    Then a custom domain, `translate.beekeeperstudio.io` (dashboard → the project → Custom
    domains). Create the project before the first push to `main`: CI's deploy fails without it.
-2. **KV**, two namespaces: `npx wrangler kv namespace create REVIEWERS` (production) and
-   one more for previews (`... create REVIEWERS-preview`). Put the ids in `wrangler.toml`:
-   the top-level `[[kv_namespaces]]` and `[[env.preview.kv_namespaces]]`. They hold
-   reviewers' details and the per-IP submission log, hashed.
-3. **Turnstile**: a widget for `translate.beekeeperstudio.io` and `translation-review.pages.dev`
-   (previews are subdomains of it; if the widget refuses one, add its hostname). Its site key goes in `wrangler.toml`
-   (`TURNSTILE_SITE_KEY`, public, in `[vars]` and `[env.preview.vars]`). The committed
-   key is Cloudflare's always-passes test key, which protects nothing: replace it.
+2. **KV**: `npx wrangler kv namespace create REVIEWERS`. Put the id in
+   `wrangler.toml` (`[[kv_namespaces]]`, binding `REVIEWERS`: the binding is the name the
+   code reads, whatever the namespace is titled). It holds reviewers' details and the
+   per-IP submission log, hashed.
+3. **Turnstile**: a widget for `translate.beekeeperstudio.io`. Its site key goes in
+   `wrangler.toml` (`TURNSTILE_SITE_KEY`, public); its secret is `TURNSTILE_SECRET` below.
 4. **Secrets**, with `npx wrangler pages secret put <NAME> --project-name
    translation-review`:
    - `TRANSLATIONS_TOKEN`: the Worker's bearer token (the same as its own
@@ -169,19 +167,15 @@ if the Worker's have changed (CI runs that weekly).
    - `GITHUB_TOKEN`: a fine-grained token limited to **Issues: read and write on
      `beekeeper-studio/web`**, nothing else
    - `TURNSTILE_SECRET`: the widget's secret key
-
-   Secrets are not in `wrangler.toml`, and a preview has its own: add them under the
-   project's Settings → Variables and secrets → Preview (that command sets production's).
-   A preview with no `GITHUB_TOKEN` cannot file anything, which is the safe way to leave it.
-   If you give it one, make it for the scratch repository.
 5. **Variables** in `wrangler.toml`, which is the source of truth (the dashboard shows
    them but won't edit them): `TRANSLATIONS_URL` (default `https://www.beekeeperstudio.io`)
-   and `GITHUB_REPO` (`beekeeper-studio/web`), and for previews `GITHUB_REPO` is a scratch
-   repository (`[env.preview.vars]`: replace `OWNER/SCRATCH-REPO`).
-6. **GitHub Actions** secrets `CLOUDFLARE_API_TOKEN` (Pages: edit) and
+   and `GITHUB_REPO` (`beekeeper-studio/web`). To try the app without filing real issues,
+   point `GITHUB_REPO` at a scratch repository (and the token at it) first.
+6. **GitHub Actions** secrets `CLOUDFLARE_API_TOKEN` (Account, Cloudflare Pages: Edit) and
    `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/ci.yml` tests every push and pull
-   request, deploys `main` to production and each pull request to a preview, and
-   comments the preview's url.
+   request, and deploys every push to `main` to production without waiting for the tests.
+   There are no previews: don't deploy another branch by hand either, since it would
+   share production's KV and settings.
 7. In `beekeeper-studio/web`: apply `worker/annotated-endpoint.patch` and deploy the
    Worker, or the app can't show any page.
 
