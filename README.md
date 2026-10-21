@@ -158,8 +158,8 @@ if the Worker's have changed (CI runs that weekly).
    one more for previews (`... create REVIEWERS-preview`). Put the ids in `wrangler.toml`:
    the top-level `[[kv_namespaces]]` and `[[env.preview.kv_namespaces]]`. They hold
    reviewers' details and the per-IP submission log, hashed.
-3. **Turnstile**: a widget for `translate.beekeeperstudio.io` (and
-   `*.translation-review.pages.dev` for previews). Its site key goes in `wrangler.toml`
+3. **Turnstile**: a widget for `translate.beekeeperstudio.io` and `translation-review.pages.dev`
+   (previews are subdomains of it; if the widget refuses one, add its hostname). Its site key goes in `wrangler.toml`
    (`TURNSTILE_SITE_KEY`, public, in `[vars]` and `[env.preview.vars]`). The committed
    key is Cloudflare's always-passes test key, which protects nothing: replace it.
 4. **Secrets**, with `npx wrangler pages secret put <NAME> --project-name
