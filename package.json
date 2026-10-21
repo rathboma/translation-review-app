@@ -1,0 +1,38 @@
+{
+  "name": "translation-review",
+  "private": true,
+  "type": "module",
+  "description": "translate.beekeeperstudio.io: translators review the machine-translated copies of beekeeperstudio.io and file their notes as GitHub issues.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vue-tsc --noEmit -p tsconfig.app.json && vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.e2e.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "sync:translate": "node scripts/sync-translate.mjs",
+    "check:vendor": "node scripts/sync-translate.mjs --check",
+    "deploy": "vite build && wrangler pages deploy dist --project-name translation-review"
+  },
+  "engines": {
+    "node": ">= 22.18.0"
+  },
+  "dependencies": {
+    "entities": "8.1.0",
+    "parse5": "8.0.1",
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261019.1",
+    "@playwright/test": "1.64.1",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "26.6.5",
+    "@vitejs/plugin-vue": "6.0.10",
+    "jsdom": "29.1.1",
+    "js-yaml": "4.1.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "vitest": "5.0.5",
+    "vue-tsc": "3.3.13",
+    "wrangler": "4.151.3"
+  }
+}

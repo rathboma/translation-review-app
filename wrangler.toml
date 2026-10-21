@@ -1,0 +1,27 @@
+# translate.beekeeperstudio.io: a Cloudflare Pages project (this repo's root),
+# a static frontend (dist/, built by Vite) and Pages Functions (functions/).
+# See README.md.
+#
+# Secrets (wrangler pages secret put <NAME> --project-name translation-review):
+#   TRANSLATIONS_TOKEN  the translation Worker's bearer token
+#   GITHUB_TOKEN        a fine-grained token: Issues write on GITHUB_REPO only
+#   TURNSTILE_SECRET    the Turnstile widget's secret key
+name = "translation-review"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# The site whose translated copies are reviewed (the Worker answers on it).
+TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
+# Where issues are filed.
+GITHUB_REPO = "beekeeper-studio/web"
+# Public: the Turnstile widget's site key (its secret is TURNSTILE_SECRET).
+TURNSTILE_SITE_KEY = "0x4AAAAAAFfXLN2oRn2wQs6m"
+
+# Reviewers' name, email and issue numbers (never put in an issue) and the
+# per-IP submission counters. Create it with `wrangler kv namespace create
+# REVIEWERS` and put the id here.
+[[kv_namespaces]]
+binding = "REVIEWERS"
+id = "f3da0de841984227b29e2b3a540e84dc"

@@ -1,0 +1,10 @@
+{
+  "repo": "beekeeper-studio/web",
+  "path": "workers/translate/src",
+  "ref": "local checkout",
+  "commit": "91ba79773208807a5043bfae50c2f16203de3773",
+  "files": {
+    "lint.ts": "1bee146d12c94e5e668424aeaa6f1a5b3eb93d76b0a04337e275555e549da240",
+    "text.ts": "d43f6ff4b3cc3d60b354d79876755b81c0f20a2fa05ae6de66bedd1701087cb1"
+  }
+}

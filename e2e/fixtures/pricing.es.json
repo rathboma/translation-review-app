@@ -1,0 +1,514 @@
+{
+ "lang": "es",
+ "path": "/pricing/",
+ "fingerprint": "76ed7b0c8ff9adeb4c64e87851ca1fc8",
+ "english": "<!DOCTYPE html><html lang=\"en\"><head>\n<meta charset=\"utf-8\">\n<title>Beekeeper Studio Pricing</title>\n<meta name=\"description\" content=\"Pay once, use the paid features forever.\">\n<meta name=\"robots\" content=\"noindex\">\n<link rel=\"canonical\" href=\"https://www.beekeeperstudio.io/pricing/\">\n<link rel=\"stylesheet\" href=\"/assets/css/main-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.css\" crossorigin=\"anonymous\" integrity=\"sha384-abc\">\n<link rel=\"preload\" href=\"/assets/fonts/inter.woff2\" as=\"font\" crossorigin=\"\">\n<script>document.documentElement.setAttribute(\"data-script-ran\", \"yes\")</script>\n<script src=\"/assets/js/main-ABCD1234.js\" defer=\"\"></script>\n</head>\n<body class=\"page\" data-lang=\"en\" onload=\"document.body.setAttribute('data-onload-ran', 'yes')\">\n<noscript><img src=\"https://tracker.example/pixel.gif\" alt=\"tracker\"></noscript>\n<header data-i18n-scope=\"header\"><a href=\"/get\" data-seg=\"s1\">Download</a> <a href=\"/pricing/\" data-seg=\"s2\">Pricing</a> <a href=\"/blog/\" data-seg=\"s3\">Blog</a></header>\n<main>\n<h1 data-seg=\"s4\">Pricing</h1>\n<p data-seg=\"s5\">Pay once, use the paid features forever.</p>\n<p data-seg=\"s6\">Read the <a href=\"/docs\">documentation</a> and <strong>start for free</strong>.</p>\n<p data-seg=\"s7\">Only $99 a year for one user.</p><span data-seg=\"s8\">\nLoose words in the page\n</span><div><p data-seg=\"s9\">The Business plan covers your whole team.</p></div>\n<img src=\"/img/logo.png\" alt=\"Beekeeper Studio logo\" width=\"120\" height=\"40\">\n<button title=\"Opens the download page\" onclick=\"alert('hi')\" data-seg=\"s10\">Download</button>\n<p data-seg=\"s5\">Pay once, use the paid features forever.</p>\n<p data-seg=\"s11\">Feature 1: a handy tool for your database work.</p>\n<p data-seg=\"s12\">Feature 2: a handy tool for your database work.</p>\n<p data-seg=\"s13\">Feature 3: a handy tool for your database work.</p>\n<p data-seg=\"s14\">Feature 4: a handy tool for your database work.</p>\n<p data-seg=\"s15\">Feature 5: a handy tool for your database work.</p>\n<p data-seg=\"s16\">Feature 6: a handy tool for your database work.</p>\n<p data-seg=\"s17\">Feature 7: a handy tool for your database work.</p>\n<p data-seg=\"s18\">Feature 8: a handy tool for your database work.</p>\n<p data-seg=\"s19\">Feature 9: a handy tool for your database work.</p>\n<p data-seg=\"s20\">Feature 10: a handy tool for your database work.</p>\n<p data-seg=\"s21\">Feature 11: a handy tool for your database work.</p>\n<p data-seg=\"s22\">Feature 12: a handy tool for your database work.</p>\n<p data-seg=\"s23\">Feature 13: a handy tool for your database work.</p>\n<p data-seg=\"s24\">Feature 14: a handy tool for your database work.</p>\n<p data-seg=\"s25\">Feature 15: a handy tool for your database work.</p>\n<p data-seg=\"s26\">Feature 16: a handy tool for your database work.</p>\n<p data-seg=\"s27\">Feature 17: a handy tool for your database work.</p>\n<p data-seg=\"s28\">Feature 18: a handy tool for your database work.</p>\n<p data-seg=\"s29\">Feature 19: a handy tool for your database work.</p>\n<p data-seg=\"s30\">Feature 20: a handy tool for your database work.</p>\n<p data-seg=\"s31\">Feature 21: a handy tool for your database work.</p>\n<p data-seg=\"s32\">Feature 22: a handy tool for your database work.</p>\n<p data-seg=\"s33\">Feature 23: a handy tool for your database work.</p>\n<p data-seg=\"s34\">Feature 24: a handy tool for your database work.</p>\n<p data-seg=\"s35\">Feature 25: a handy tool for your database work.</p>\n<p data-seg=\"s36\">Feature 26: a handy tool for your database work.</p>\n<p data-seg=\"s37\">Feature 27: a handy tool for your database work.</p>\n<p data-seg=\"s38\">Feature 28: a handy tool for your database work.</p>\n<p data-seg=\"s39\">Feature 29: a handy tool for your database work.</p>\n<p data-seg=\"s40\">Feature 30: a handy tool for your database work.</p>\n<p data-seg=\"s41\">Feature 31: a handy tool for your database work.</p>\n<p data-seg=\"s42\">Feature 32: a handy tool for your database work.</p>\n<p data-seg=\"s43\">Feature 33: a handy tool for your database work.</p>\n<p data-seg=\"s44\">Feature 34: a handy tool for your database work.</p>\n<p data-seg=\"s45\">Feature 35: a handy tool for your database work.</p>\n<p data-seg=\"s46\">Feature 36: a handy tool for your database work.</p>\n<p data-seg=\"s47\">Feature 37: a handy tool for your database work.</p>\n<p data-seg=\"s48\">Feature 38: a handy tool for your database work.</p>\n<p data-seg=\"s49\">Feature 39: a handy tool for your database work.</p>\n<p data-seg=\"s50\">Feature 40: a handy tool for your database work.</p>\n<p data-seg=\"s51\">Questions? <a href=\"mailto:hello@beekeeperstudio.io\">Write to us</a>.</p>\n</main>\n<footer data-i18n-scope=\"footer\"><a href=\"/blog/\" data-seg=\"s52\">Blog</a><p data-seg=\"s53\">Made by the Beekeeper Studio team.</p></footer>\n\n</body></html>",
+ "translated": "<!DOCTYPE html><html lang=\"en\"><head>\n<meta charset=\"utf-8\">\n<title>Precios de Beekeeper Studio</title>\n<meta name=\"description\" content=\"Paga una vez, usa las funciones de pago para siempre.\">\n<meta name=\"robots\" content=\"noindex\">\n<link rel=\"canonical\" href=\"https://www.beekeeperstudio.io/pricing/\">\n<link rel=\"stylesheet\" href=\"/assets/css/main-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.css\" crossorigin=\"anonymous\" integrity=\"sha384-abc\">\n<link rel=\"preload\" href=\"/assets/fonts/inter.woff2\" as=\"font\" crossorigin=\"\">\n<script>document.documentElement.setAttribute(\"data-script-ran\", \"yes\")</script>\n<script src=\"/assets/js/main-ABCD1234.js\" defer=\"\"></script>\n</head>\n<body class=\"page\" data-lang=\"en\" onload=\"document.body.setAttribute('data-onload-ran', 'yes')\">\n<noscript><img src=\"https://tracker.example/pixel.gif\" alt=\"tracker\"></noscript>\n<header data-i18n-scope=\"header\"><a href=\"/get\" data-seg=\"s1\">Descargar</a> <a href=\"/pricing/\" data-seg=\"s2\">Precios</a> <a href=\"/blog/\" data-seg=\"s3\">Blog</a></header>\n<main>\n<h1 data-seg=\"s4\">Precios</h1>\n<p data-seg=\"s5\">Paga una vez, usa las funciones de pago para siempre.</p>\n<p data-seg=\"s6\">Lee la <a href=\"/docs\">documentación</a> y <strong>empieza gratis</strong>.</p>\n<p data-seg=\"s7\">Solo $99 al año para un usuario.</p><span data-seg=\"s8\">\nPalabras sueltas en la página\n</span><div><p data-seg=\"s9\">The Business plan covers your whole team.</p></div>\n<img src=\"/img/logo.png\" alt=\"Logotipo de Beekeeper Studio\" width=\"120\" height=\"40\">\n<button title=\"Abre la página de descarga\" onclick=\"alert('hi')\" data-seg=\"s10\">Download</button>\n<p data-seg=\"s5\">Paga una vez, usa las funciones de pago para siempre.</p>\n<p data-seg=\"s11\">Función 1: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s12\">Función 2: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s13\">Función 3: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s14\">Función 4: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s15\">Función 5: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s16\">Función 6: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s17\">Función 7: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s18\">Función 8: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s19\">Función 9: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s20\">Función 10: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s21\">Función 11: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s22\">Función 12: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s23\">Función 13: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s24\">Función 14: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s25\">Función 15: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s26\">Función 16: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s27\">Función 17: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s28\">Función 18: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s29\">Función 19: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s30\">Función 20: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s31\">Función 21: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s32\">Función 22: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s33\">Función 23: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s34\">Función 24: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s35\">Función 25: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s36\">Función 26: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s37\">Función 27: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s38\">Función 28: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s39\">Función 29: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s40\">Función 30: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s41\">Función 31: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s42\">Función 32: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s43\">Función 33: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s44\">Función 34: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s45\">Función 35: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s46\">Función 36: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s47\">Función 37: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s48\">Función 38: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s49\">Función 39: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s50\">Función 40: una herramienta útil para tu trabajo con bases de datos.</p>\n<p data-seg=\"s51\">¿Preguntas? <a href=\"mailto:hello@beekeeperstudio.io\">Escríbenos</a>.</p>\n</main>\n<footer data-i18n-scope=\"footer\"><a href=\"/blog/\" data-seg=\"s52\">Blog</a><p data-seg=\"s53\">Hecho por el equipo de Beekeeper Studio.</p></footer>\n\n</body></html>",
+ "segments": [
+  {
+   "id": "s1",
+   "key": "Download",
+   "kind": "html",
+   "where": "a",
+   "scope": "header",
+   "source": "common",
+   "translation": "Descargar"
+  },
+  {
+   "id": "s2",
+   "key": "Pricing",
+   "kind": "html",
+   "where": "a",
+   "scope": "header",
+   "source": "common",
+   "translation": "Precios"
+  },
+  {
+   "id": "s3",
+   "key": "Blog",
+   "kind": "html",
+   "where": "a",
+   "scope": "header",
+   "source": "common",
+   "translation": "Blog"
+  },
+  {
+   "id": "s4",
+   "key": "Pricing",
+   "kind": "html",
+   "where": "h1",
+   "scope": null,
+   "source": "generated",
+   "translation": "Precios"
+  },
+  {
+   "id": "s5",
+   "key": "Pay once, use the paid features forever.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Paga una vez, usa las funciones de pago para siempre."
+  },
+  {
+   "id": "s6",
+   "key": "Read the <a href=\"/docs\">documentation</a> and <strong>start for free</strong>.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Lee la <a href=\"/docs\">documentación</a> y <strong>empieza gratis</strong>."
+  },
+  {
+   "id": "s7",
+   "key": "Only $99 a year for one user.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Solo $99 al año para un usuario."
+  },
+  {
+   "id": "s8",
+   "key": "Loose words in the page",
+   "kind": "text",
+   "where": "main",
+   "scope": null,
+   "source": "generated",
+   "translation": "Palabras sueltas en la página"
+  },
+  {
+   "id": "s9",
+   "key": "The Business plan covers your whole team.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "english",
+   "translation": null
+  },
+  {
+   "id": "s10",
+   "key": "Download",
+   "kind": "html",
+   "where": "button, under \"Pricing\"",
+   "scope": null,
+   "source": "english",
+   "translation": null
+  },
+  {
+   "id": "s11",
+   "key": "Feature 1: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 1: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s12",
+   "key": "Feature 2: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 2: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s13",
+   "key": "Feature 3: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 3: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s14",
+   "key": "Feature 4: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 4: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s15",
+   "key": "Feature 5: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 5: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s16",
+   "key": "Feature 6: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 6: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s17",
+   "key": "Feature 7: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 7: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s18",
+   "key": "Feature 8: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 8: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s19",
+   "key": "Feature 9: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 9: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s20",
+   "key": "Feature 10: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 10: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s21",
+   "key": "Feature 11: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 11: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s22",
+   "key": "Feature 12: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 12: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s23",
+   "key": "Feature 13: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 13: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s24",
+   "key": "Feature 14: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 14: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s25",
+   "key": "Feature 15: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 15: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s26",
+   "key": "Feature 16: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 16: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s27",
+   "key": "Feature 17: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 17: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s28",
+   "key": "Feature 18: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 18: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s29",
+   "key": "Feature 19: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 19: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s30",
+   "key": "Feature 20: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 20: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s31",
+   "key": "Feature 21: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 21: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s32",
+   "key": "Feature 22: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 22: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s33",
+   "key": "Feature 23: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 23: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s34",
+   "key": "Feature 24: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 24: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s35",
+   "key": "Feature 25: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 25: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s36",
+   "key": "Feature 26: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 26: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s37",
+   "key": "Feature 27: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 27: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s38",
+   "key": "Feature 28: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 28: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s39",
+   "key": "Feature 29: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 29: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s40",
+   "key": "Feature 30: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 30: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s41",
+   "key": "Feature 31: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 31: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s42",
+   "key": "Feature 32: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 32: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s43",
+   "key": "Feature 33: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 33: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s44",
+   "key": "Feature 34: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 34: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s45",
+   "key": "Feature 35: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 35: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s46",
+   "key": "Feature 36: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 36: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s47",
+   "key": "Feature 37: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 37: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s48",
+   "key": "Feature 38: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 38: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s49",
+   "key": "Feature 39: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 39: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s50",
+   "key": "Feature 40: a handy tool for your database work.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Función 40: una herramienta útil para tu trabajo con bases de datos."
+  },
+  {
+   "id": "s51",
+   "key": "Questions? <a href=\"mailto:hello@beekeeperstudio.io\">Write to us</a>.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "¿Preguntas? <a href=\"mailto:hello@beekeeperstudio.io\">Escríbenos</a>."
+  },
+  {
+   "id": "s52",
+   "key": "Blog",
+   "kind": "html",
+   "where": "a, under \"Pricing\"",
+   "scope": "footer",
+   "source": "common",
+   "translation": "Blog"
+  },
+  {
+   "id": "s53",
+   "key": "Made by the Beekeeper Studio team.",
+   "kind": "html",
+   "where": "p, under \"Pricing\"",
+   "scope": "footer",
+   "source": "generated",
+   "translation": "Hecho por el equipo de Beekeeper Studio."
+  },
+  {
+   "id": "s54",
+   "key": "Beekeeper Studio logo",
+   "kind": "attr",
+   "where": "img[alt], under \"Pricing\"",
+   "scope": null,
+   "source": "generated",
+   "translation": "Logotipo de Beekeeper Studio"
+  },
+  {
+   "id": "s55",
+   "key": "Opens the download page",
+   "kind": "attr",
+   "where": "button[title], under \"Pricing\"",
+   "scope": null,
+   "source": "explicit",
+   "translation": "Abre la página de descarga",
+   "entryPath": "/pricing/**"
+  },
+  {
+   "id": "s56",
+   "key": "Beekeeper Studio Pricing",
+   "kind": "head",
+   "where": "title",
+   "scope": null,
+   "source": "generated",
+   "translation": "Precios de Beekeeper Studio"
+  }
+ ]
+}
