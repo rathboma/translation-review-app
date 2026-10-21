@@ -18,14 +18,14 @@ TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
 GITHUB_REPO = "beekeeper-studio/web"
 # Public. This is Cloudflare's always-passes testing key: replace it (and the
 # TURNSTILE_SECRET) with the real widget's before launch.
-TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+TURNSTILE_SITE_KEY = "0x4AAAAAAFfXLN2oRn2wQs6m"
 
 # Reviewers' name, email and issue numbers (never put in an issue) and the
 # per-IP submission counters. Create it with `wrangler kv namespace create
 # REVIEWERS` and put the id here.
 [[kv_namespaces]]
-binding = "REVIEWERS"
-id = "00000000000000000000000000000000"
+binding = "translation-review"
+id = "f3da0de841984227b29e2b3a540e84dc"
 
 # Pull request previews (every deployment not from main). Pages needs vars and
 # kv_namespaces for an environment given together, and once this file is the
@@ -38,5 +38,5 @@ GITHUB_REPO = "OWNER/SCRATCH-REPO"
 TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 
 [[env.preview.kv_namespaces]]
-binding = "REVIEWERS"
-id = "00000000000000000000000000000000"
+binding = "translation-review-preview"
+id = "35fa9ac52c7d44e493ee5d8ca5716bc5"
