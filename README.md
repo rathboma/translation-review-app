@@ -150,10 +150,14 @@ if the Worker's have changed (CI runs that weekly).
 
 ## Setup, once
 
-1. **Pages project** `translation-review`, production branch `main`:
-   `npx wrangler pages project create translation-review --production-branch main`.
-   Then a custom domain, `translate.beekeeperstudio.io` (dashboard → the project → Custom
-   domains). Create the project before the first push to `main`: CI's deploy fails without it.
+1. **Pages project** `translation-review`, from the dashboard (Workers & Pages → Create →
+   Pages → Connect to Git): this repository, production branch `main`, build command
+   `yarn build`, output directory `dist`. Cloudflare builds and deploys every push to
+   `main`; `.node-version` picks Node 22. Under Settings → Builds → Branch control set
+   preview branches to None: there are no previews, and one would share production's KV
+   and settings. Then a custom domain, `translate.beekeeperstudio.io` (the project →
+   Custom domains). Don't create the project with `wrangler pages project create`: that
+   makes a Direct Upload project, which can't be connected to Git afterwards.
 2. **KV**: `npx wrangler kv namespace create REVIEWERS`. Put the id in
    `wrangler.toml` (`[[kv_namespaces]]`, binding `REVIEWERS`: the binding is the name the
    code reads, whatever the namespace is titled). It holds reviewers' details and the
@@ -171,12 +175,7 @@ if the Worker's have changed (CI runs that weekly).
    them but won't edit them): `TRANSLATIONS_URL` (default `https://www.beekeeperstudio.io`)
    and `GITHUB_REPO` (`beekeeper-studio/web`). To try the app without filing real issues,
    point `GITHUB_REPO` at a scratch repository (and the token at it) first.
-6. **GitHub Actions** secrets `CLOUDFLARE_API_TOKEN` (Account, Cloudflare Pages: Edit) and
-   `CLOUDFLARE_ACCOUNT_ID`. `.github/workflows/ci.yml` tests every push and pull
-   request, and deploys every push to `main` to production without waiting for the tests.
-   There are no previews: don't deploy another branch by hand either, since it would
-   share production's KV and settings.
-7. In `beekeeper-studio/web`: apply `worker/annotated-endpoint.patch` and deploy the
+6. In `beekeeper-studio/web`: apply `worker/annotated-endpoint.patch` and deploy the
    Worker, or the app can't show any page.
 
 The app is `noindex` (`X-Robots-Tag` in `public/_headers`, `robots.txt`) and has no
