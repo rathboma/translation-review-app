@@ -5,7 +5,7 @@
 import { computed, ref } from "vue";
 import { scopeLabel } from "../../shared/apply.ts";
 import type { Note } from "../../shared/types.ts";
-import { deleteNote, draftOfNote, openEditor, openPage, problemsFor, state } from "../lib/state.ts";
+import { deleteNote, draftOfNote, languageLabel, openEditor, openPage, problemsFor, state } from "../lib/state.ts";
 import ChipText from "./ChipText.vue";
 
 const emit = defineEmits<{ submit: [] }>();
@@ -28,7 +28,7 @@ function remove(note: Note): void {
   deleteNote(note.id);
 }
 
-const language = (code: string) => state.manifest?.languages[code]?.label ?? code;
+const language = languageLabel;
 </script>
 
 <template>

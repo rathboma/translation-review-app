@@ -2,7 +2,7 @@
 // limits (at most 100 notes, strings under 5,000 characters), the fields each
 // note must have, and the reviewer's name and email.
 import { hasWords, nestingProblem, tooManyTags } from "./chips.ts";
-import { KINDS, LIMITS, SOURCES, type Note, type NoteProblem, type Reviewer, type SegmentKind, type Source } from "./types.ts";
+import { KINDS, LIMITS, type Note, type NoteProblem, type Reviewer, type SegmentKind } from "./types.ts";
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string; notes?: NoteProblem[] };
 
@@ -65,13 +65,10 @@ export function parseNote(input: unknown): { note?: Note; id: string; errors: st
   for (const [name, value] of [["key", key], ["current", current], ["new", next]] as const) {
     if (value !== undefined && tooManyTags(value)) errors.push(`${name} has too many tags`);
   }
-  const source = o.source as Source;
-  if (!SOURCES.includes(source)) errors.push(`source must be one of ${SOURCES.join(", ")}`);
   const kind = (o.kind ?? "html") as SegmentKind;
   if (!KINDS.includes(kind)) errors.push(`kind must be one of ${KINDS.join(", ")}`);
-  if (source === "common" && !scope) errors.push("a common translation needs its scope");
   if (errors.length) return { id, errors };
-  const note: Note = { id, lang: lang!, path: path!, key: key!, scope, source, kind, where: where ?? "", current: current!, new: next!, ...(comment ? { comment } : {}) };
+  const note: Note = { id, lang: lang!, path: path!, key: key!, scope, kind, where: where ?? "", current: current!, new: next!, ...(comment ? { comment } : {}) };
   return { note, id, errors };
 }
 
@@ -94,6 +91,8 @@ export function batch<T extends Parameters<typeof noteSize>[0]>(notes: T[]): T[]
 
 export interface ParsedSubmission {
   reviewer: Reviewer;
+  // The site the notes were written on, or "" for the default.
+  site: string;
   notes: Note[];
   turnstileToken: string;
 }
@@ -127,7 +126,7 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
       // (Tags alone pass the lint, which checks the markup: they are not a translation.)
       if (note.new.trim() === "" || !hasWords(note.new)) errors.push("the new translation is empty");
       // Keeping the English is an answer for a string the copy left untranslated.
-      else if (note.new === note.current && note.source !== "english") errors.push("the new translation is the same as the current one");
+      else if (note.new === note.current && note.new !== note.key) errors.push("the new translation is the same as the current one");
       if (note.kind === "html") {
         const nesting = nestingProblem(note.key, note.new);
         if (nesting) errors.push(nesting);
@@ -137,5 +136,6 @@ export function parseSubmission(input: unknown): Parsed<ParsedSubmission> {
     else notes.push(parsed.note!);
   });
   if (problems.length) return { ok: false, error: "Some notes need fixing.", notes: problems };
-  return { ok: true, value: { reviewer: reviewer.value, notes, turnstileToken: token } };
+  const site = typeof input.site === "string" ? input.site : "";
+  return { ok: true, value: { reviewer: reviewer.value, site, notes, turnstileToken: token } };
 }

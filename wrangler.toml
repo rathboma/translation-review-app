@@ -3,7 +3,6 @@
 # See README.md.
 #
 # Secrets (wrangler pages secret put <NAME> --project-name translation-review):
-#   TRANSLATIONS_TOKEN  the translation Worker's bearer token
 #   GITHUB_TOKEN        a fine-grained token: Issues write on GITHUB_REPO only
 #   TURNSTILE_SECRET    the Turnstile widget's secret key
 name = "translation-review"
@@ -12,7 +11,8 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-# The site whose translated copies are reviewed (the Worker answers on it).
+# The site whose pages are reviewed unless a link or the translator names another
+# (its English pages, and the copies under /es/, /pt-br/ and /ja/).
 TRANSLATIONS_URL = "https://www.beekeeperstudio.io"
 # Where issues are filed.
 GITHUB_REPO = "beekeeper-studio/web"

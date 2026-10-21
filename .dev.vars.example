@@ -1,10 +1,9 @@
 # Copy to .dev.vars for `yarn dev` (wrangler pages dev reads it). The real
 # values are Pages secrets: see "Setup, once" in README.md.
-TRANSLATIONS_TOKEN=the-translation-workers-bearer-token
 GITHUB_TOKEN=a-fine-grained-token-with-issues-write-on-one-repo
 # Cloudflare's always-passes test secret, for use with the test site key in wrangler.toml
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
 # Point the Functions at other services (the browser tests do):
-# TRANSLATIONS_URL=http://127.0.0.1:8799
+# TRANSLATIONS_URL=http://127.0.0.1:8799   (the site whose pages are reviewed)
 # GITHUB_API_URL=http://127.0.0.1:8799/github
 # GITHUB_REPO=your-name/a-scratch-repo

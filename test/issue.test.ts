@@ -4,14 +4,14 @@ import { BODY_LIMIT, code, NoteTooLarge, quote, renderIssue, scalar, splitIssues
 import { machineNotes, report } from "./helpers.ts";
 
 const submitted = new Date("2026-10-21T10:14:00.123Z");
-const input = (reports = [report()]) => ({ lang: "es", label: "Español", name: "María López", submitted, reports, appUrl: "https://translate.beekeeperstudio.io" });
+const input = (reports = [report()]) => ({ lang: "es", label: "Español", name: "María López", submitted, reports, appUrl: "https://translate.beekeeperstudio.io", site: "https://www.beekeeperstudio.io" });
 
 const sample = () => [
   report({ comment: '"una sola vez" reads more naturally.' }),
-  report({ path: "/", key: "Blog", scope: "footer", source: "common", where: 'a, under "Links"', current: "Blog", new: "Blog técnico" }),
+  report({ path: "/", key: "Blog", scope: "footer", where: 'a, under "Links"', current: "Blog", new: "Blog técnico" }),
   report(
-    { key: 'Read <a href="/docs">the docs</a>', source: "explicit", current: 'Lee <a href="/docs">la documentación</a>', new: 'Consulta <a href="/docs">los documentos</a>' },
-    { stale: true, warnings: ['glossary: "Docs" is usually "Documentación"'], changedTo: "otra" },
+    { key: 'Read <a href="/docs">the docs</a>', current: 'Lee <a href="/docs">la documentación</a>', new: 'Consulta <a href="/docs">los documentos</a>' },
+    { warnings: ['glossary: "Docs" is usually "Documentación"'] },
   ),
 ];
 
@@ -29,30 +29,27 @@ test("a single note is singular", () => {
 test("the machine-readable block has everything needed to apply each note", () => {
   const doc = machineNotes(renderIssue(input(sample())).body);
   assert.equal(doc.lang, "es");
+  assert.equal(doc.site, "https://www.beekeeperstudio.io");
   assert.equal(doc.submitted.toISOString(), "2026-10-21T10:14:00.000Z");
   assert.equal(doc.notes.length, 3);
   assert.deepEqual(doc.notes[0], {
     path: "/pricing/",
     key: "Pay once, use the paid features forever.",
     scope: null,
-    source: "generated",
     where: 'p, under "Pricing"',
-    fingerprint: "3f2a9c",
     current: "Paga una vez, usa las funciones de pago para siempre.",
     new: "Paga una sola vez y usa las funciones de pago para siempre.",
     comment: '"una sola vez" reads more naturally.',
     apply: {
-      action: "add-explicit",
+      action: "set-explicit",
       file: "bin/translations/explicit/es.yml",
       entry: { path: "/pricing/", en: "Pay once, use the paid features forever.", es: "Paga una sola vez y usa las funciones de pago para siempre." },
     },
   });
   assert.deepEqual(doc.notes[1].apply, { action: "set-common", file: "bin/translations/common/es.json", set: ["footer", "Blog", "Blog técnico"] });
   assert.equal(doc.notes[1].scope, "footer");
-  assert.equal(doc.notes[2].stale, true);
   assert.deepEqual(doc.notes[2].warnings, ['glossary: "Docs" is usually "Documentación"']);
-  assert.equal(doc.notes[2].current_now, "otra");
-  assert.equal(doc.notes[2].apply.action, "replace-explicit");
+  assert.equal(doc.notes[2].apply.action, "set-explicit");
 });
 
 test("what a stranger types cannot ping people, link issues or break the markup", () => {
@@ -98,8 +95,8 @@ test("code spans cope with backticks and newlines", () => {
 });
 
 test("a note on a shared include says it applies on every page", () => {
-  const body = renderIssue(input([report({ scope: "footer", source: "common", path: "/", key: "Blog", current: "Blog", new: "Blog técnico" })])).body;
-  assert.match(body, /### 1\. `footer` \(every page\) · common/);
+  const body = renderIssue(input([report({ scope: "footer", path: "/", key: "Blog", current: "Blog", new: "Blog técnico" })])).body;
+  assert.match(body, /### 1\. `footer` \(every page\) · `\/`/);
   assert.match(body, /the site footer: the change applies on every page/);
 });
 

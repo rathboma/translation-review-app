@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// The submit Function lints every new translation with the translation
-// Worker's own rules, so the Worker's lint.ts (and the text.ts it imports) are
-// vendored byte for byte into vendor/translate/. This repo is not a part of
-// beekeeper-studio/web, so it cannot import them from there.
+// The app splits a page into segments and lints every new translation with the
+// translation Worker's own code, so those files (segments.ts and what it
+// imports, and lint.ts) are vendored byte for byte into vendor/translate/. This
+// repo is not a part of beekeeper-studio/web, so it cannot import them from there.
 //
 //   node scripts/sync-translate.mjs [--from <web checkout>] [--ref <git ref>]
 //       copies the files and records where they came from in SOURCE.json
@@ -12,7 +12,7 @@
 //       fails if a vendored file no longer matches SOURCE.json (someone
 //       edited it by hand); offline
 //   node scripts/sync-translate.mjs --check --upstream [--ref <git ref>]
-//       also fails when upstream's files differ (the Worker's lint changed:
+//       also fails when upstream's files differ (the Worker's code changed:
 //       sync again)
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -24,7 +24,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const vendor = join(root, "vendor/translate");
 const sourceFile = join(vendor, "SOURCE.json");
 const REPO = "beekeeper-studio/web";
-const FILES = ["lint.ts", "text.ts"];
+const FILES = ["assets.ts", "dom.ts", "head.ts", "lint.ts", "page.ts", "segments.ts", "text.ts", "translator.ts"];
 const UPSTREAM_DIR = "workers/translate/src";
 
 const args = process.argv.slice(2);
@@ -69,7 +69,7 @@ async function check() {
       }
     }
   }
-  if (!bad) console.log("vendored translation lint is in sync");
+  if (!bad) console.log("vendored translation code is in sync");
   process.exit(bad ? 1 : 0);
 }
 

@@ -21,6 +21,8 @@ export interface IssueInput {
   reports: Report[];
   // Where the notes came from.
   appUrl: string;
+  // The site whose pages they are about.
+  site: string;
   part?: { n: number; of: number };
 }
 
@@ -79,16 +81,12 @@ function entry(report: Report, indent: string): string[] {
     `path: ${scalar(note.path)}`,
     `key: ${quote(note.key)}`,
     `scope: ${note.scope === null ? "null" : scalar(note.scope)}`,
-    `source: ${note.source}`,
     `where: ${quote(note.where)}`,
-    `fingerprint: ${report.fingerprint === null ? "null" : quote(report.fingerprint)}`,
     `current: ${quote(note.current)}`,
     `new: ${quote(note.new)}`,
   ];
-  if (report.changedTo !== undefined) lines.push(`current_now: ${quote(report.changedTo)}`);
   if (note.comment) lines.push(`comment: ${quote(note.comment)}`);
   if (report.warnings.length) lines.push("warnings:", ...report.warnings.map((w) => `  - ${quote(w)}`));
-  if (report.stale) lines.push("stale: true");
   const a = report.apply;
   lines.push("apply:", `  action: ${a.action}`, `  file: ${a.file}`);
   if (a.action === "set-common") {
@@ -100,7 +98,7 @@ function entry(report: Report, indent: string): string[] {
 }
 
 function machineBlock(input: IssueInput): string {
-  const lines = [`lang: ${scalar(input.lang)}`, `submitted: ${input.submitted.toISOString().replace(/\.\d+Z$/, "Z")}`];
+  const lines = [`lang: ${scalar(input.lang)}`, `site: ${quote(input.site)}`, `submitted: ${input.submitted.toISOString().replace(/\.\d+Z$/, "Z")}`];
   if (input.part) lines.push(`part: ${input.part.n}`, `parts: ${input.part.of}`);
   lines.push("notes:", ...input.reports.flatMap((r) => entry(r, "  ")));
   return fenced("yaml", lines.join("\n"));
@@ -110,9 +108,9 @@ function machineBlock(input: IssueInput): string {
 
 function section(report: Report, index: number): string {
   const { note } = report;
-  const where = note.scope && note.source === "common"
-    ? `${code(note.scope)} (every page) · common`
-    : `${code(note.path)} · ${code(note.where)}${note.scope ? ` · ${code(note.scope)} include` : ""} · ${note.source}`;
+  const where = note.scope
+    ? `${code(note.scope)} (every page) · ${code(note.path)}`
+    : `${code(note.path)} · ${code(note.where)}`;
   const lines = [
     `### ${index + 1}. ${where}`,
     `English: ${code(note.key)}`,
@@ -121,11 +119,7 @@ function section(report: Report, index: number): string {
   ];
   if (note.comment) lines.push(`Comment: ${code(note.comment)}`);
   if (report.warnings.length) lines.push(`Lint warnings: ${report.warnings.map(code).join(" · ")}`);
-  if (note.scope) lines.push(note.source === "common"
-    ? `This text is in ${scopeText(note.scope)}: the change applies on every page.`
-    : `This text is in ${scopeText(note.scope)}, translated here for this page only.`);
-  if (report.changedTo !== undefined) lines.push(`Heads up: the current translation has changed since this note was written, it is now ${code(report.changedTo)}.`);
-  if (report.stale) lines.push("**Stale:** this English text is no longer on the page. Skip this note.");
+  if (note.scope) lines.push(`This text is in ${scopeText(note.scope)}: the change applies on every page.`);
   // Two trailing spaces: a markdown line break, so the fields stay one per line.
   return lines.map((l, i) => (i === 0 || i === lines.length - 1 ? l : `${l}  `)).join("\n");
 }
@@ -135,13 +129,14 @@ const FOOTER = `---
 
 1. Read the YAML block above. For each note, apply its \`apply\` to the named file in this repository:
    - \`set-common\`: set \`common[<scope>][<key>]\` in the JSON file. It changes that string on every page with the include. Keep the file sorted by scope.
-   - \`replace-explicit\`: in the YAML file, set the language's value of the entry whose \`path\` and \`en\` match.
-   - \`add-explicit\`: append the entry to the YAML file, as \`node bin/translations.mjs pin\` does.
+   - \`set-explicit\`: in the YAML file, set the language's value of the entry whose \`path\` and \`en\` match, or append the entry if there is none, as \`node bin/translations.mjs pin\` does.
+
+   The notes were written against the live site, which doesn't say where a translation comes from: if something more specific overrides the change (an explicit entry for the page, say, over a common one), change that instead.
 
    Keep \`explicit/<lang>.yml\` in its existing format (\`yaml.dump\` with \`forceQuotes\`, as \`pin\` does).
-2. Skip notes marked \`stale: true\`, and say so on this issue.
+2. A note whose English (\`key\`) is no longer on the page is out of date: skip it, and say so on this issue.
 3. Run \`node bin/translations.mjs lint\`: it must pass.
-4. Commit and open a pull request that closes this issue. The next deploy renders the affected pages again (their fingerprints change).`;
+4. Commit and open a pull request that closes this issue. The next deploy renders the affected pages again.`;
 
 // A name for a title, which is not code: cut by characters (not halves of an
 // emoji), and without what would link or mention.
@@ -156,7 +151,7 @@ export function renderIssue(input: IssueInput): Issue {
   const part = input.part ? `, part ${input.part.n} of ${input.part.of}` : "";
   const summary = [
     `Translation notes from ${code(name)} for **${lang}** (${label}), ${plural(reports.length, "note")} on ${plural(pages, "page")}${part}.`,
-    `Submitted with ${input.appUrl.replace(/^https?:\/\//, "")}.`,
+    `Submitted with ${input.appUrl.replace(/^https?:\/\//, "")}, from the pages on ${code(input.site)}.`,
   ].join("\n");
   const body = [
     summary,

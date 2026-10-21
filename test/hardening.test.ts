@@ -8,16 +8,16 @@ import { scopeLabel } from "../shared/apply.ts";
 import { parseSubmission } from "../shared/validate.ts";
 import { ipBucket } from "../server/ratelimit.ts";
 import { submitHandler } from "../server/submit.ts";
-import { annotated, env, post, segment, submission, world, type World } from "./server-helpers.ts";
+import { env, post, submission, world, type World } from "./server-helpers.ts";
 import { machineNotes, note, report } from "./helpers.ts";
 
 const NOW = new Date("2026-10-21T10:14:00Z");
 const send = (e: ReturnType<typeof env>, body: unknown, headers?: Record<string, string>) => submitHandler(post(body, headers), e, { now: () => NOW });
-const issueInput = (reports = [report()]) => ({ lang: "es", label: "Español", name: "María López", submitted: NOW, reports, appUrl: "https://translate.beekeeperstudio.io" });
+const issueInput = (reports = [report()]) => ({ lang: "es", label: "Español", name: "María López", submitted: NOW, reports, appUrl: "https://translate.beekeeperstudio.io", site: "https://www.beekeeperstudio.io" });
 
 let w: World;
 beforeEach(() => {
-  w = world({ "es /pricing/": annotated("es", "/pricing/", [segment()]) });
+  w = world();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -29,9 +29,9 @@ const time = (fn: () => unknown) => {
 
 // ---- text from a stranger reaches the public issue only inside code ------------
 
-test("a stale note's scope is text from a stranger: it goes in a code span, not into the markdown", () => {
+test("a note's scope is text from a stranger (it is filed as the browser sent it): it goes in a code span, not into the markdown", () => {
   const scope = "@beekeeper-studio/maintainers @octocat #1 [x](https://evil.example)";
-  const body = renderIssue(issueInput([report({ scope, source: "generated" }, { stale: true })])).body;
+  const body = renderIssue(issueInput([report({ scope })])).body;
   const outside = body.replace(/(`{3,})[^\n]*\n[\s\S]*?\n\1\n/g, "").replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)/g, "");
   for (const bad of ["@beekeeper-studio", "@octocat", "#1", "](https", "evil.example"]) assert.ok(!outside.includes(bad), `${bad} is rendered: ${outside}`);
 });
@@ -42,7 +42,7 @@ test("scope names that are properties of every object are not in the table", () 
 });
 
 test("a scope is a name: letters, digits, hyphens", async () => {
-  const bad = await send(env(), submission([note({ scope: "@everyone [x](y)", key: "Nope", source: "generated" })]));
+  const bad = await send(env(), submission([note({ scope: "@everyone [x](y)", key: "Nope" })]));
   assert.equal(bad.status, 422);
   assert.equal(w.github.calls.length, 0);
 });
@@ -60,7 +60,7 @@ test("quote() escapes the non-characters a YAML parser other than js-yaml reject
   assert.equal(machineNotes(renderIssue(issueInput([report({ new: "Paga\ufffe\uffff una vez" })])).body).notes[0].new, "Paga\ufffe\uffff una vez");
 });
 
-// ---- the language is a language of the manifest, not a property of an object -----
+// ---- the language is one of ours, not a property of an object ---------------------
 
 test("a language that is a property of every object is not a language", async () => {
   for (const lang of ["constructor", "toString", "__proto__"]) {
@@ -119,29 +119,6 @@ test("mis-nested tags in a note are refused by the server, next to the note", as
   const response = await send(env(), submission([note({ key, current: 'Lee los <a href="/docs">docs</a> ya', new: 'Lee los docs</a><a href="/docs"> ya' })]));
   assert.equal(response.status, 422);
   assert.match(JSON.stringify(((await response.json()) as any).notes), /nested/);
-});
-
-test("a note that is already the live translation is a no-op, and says to delete it", async () => {
-  const live = "Paga una vez, usa las funciones de pago para siempre.";
-  const response = await send(env(), submission([note({ id: "same", current: "una vieja traducción", new: live })]));
-  assert.equal(response.status, 422);
-  const [problem] = ((await response.json()) as any).notes;
-  assert.equal(problem.id, "same");
-  assert.match(problem.errors.join(" "), /already the current translation/);
-  assert.equal(w.github.calls.length, 0);
-});
-
-test("the answer says how many notes were filed as stale, so a translator isn't left to find out", async () => {
-  const response = await send(env(), submission([note({ id: "ok" }), note({ id: "gone", key: "Not on the page any more", current: "Ya no", new: "Tampoco" })]));
-  const body = (await response.json()) as any;
-  assert.equal(body.ok, true);
-  assert.equal(body.stale, 1);
-});
-
-test("a page that has lost its copy files its notes as stale, and says so", async () => {
-  delete w.worker.pages["es /pricing/"];
-  const body = (await (await send(env(), submission([note()]))).json()) as any;
-  assert.equal(body.stale, 1);
 });
 
 // ---- the rate limit ---------------------------------------------------------------

@@ -9,8 +9,10 @@ translation itself.
 
 The copies are made by the Worker in `workers/translate/` in
 [beekeeper-studio/web](https://github.com/beekeeper-studio/web) (see "Translated
-Pages" in its `CLAUDE.md`). This app only reads them, through the Worker's API, and
-files issues. The original spec is in [`docs/spec.md`](docs/spec.md).
+Pages" in its `CLAUDE.md`), and served by the site under `/es/`, `/pt-br/` and `/ja/`.
+This app needs nothing from that Worker but its pages: it reads the English page
+(`/pricing/`) and its copy (`/es/pricing/`) from the site like any visitor, with no
+token. The original spec is in [`docs/spec.md`](docs/spec.md).
 
 ## How it works
 
@@ -18,29 +20,39 @@ files issues. The original spec is in [`docs/spec.md`](docs/spec.md).
 browser ──► Cloudflare Pages ──── static frontend (Vue 3, Vite)        src/
                  │
                  └── Pages Functions                                   functions/ → server/
-                       GET  /api/manifest   languages, pages, glossary, Turnstile site key
-                       GET  /api/page       both pages, made safe to show, with their segments
-                       POST /api/submit     Turnstile, limits, lint, live check, GitHub issues
+                       GET  /api/config   the default site, the Turnstile site key
+                       GET  /api/page     both pages, made safe to show, with their segments
+                       POST /api/submit   Turnstile, limits, lint, GitHub issues
                           │            │
-        translation Worker┘            └─► GitHub (issues: write on one repo)
-        (bearer token)                     KV `REVIEWERS` (email by issue number, rate limit)
+     the site (any address)┘            └─► GitHub (issues: write on one repo)
+     /pricing/ and /es/pricing/             KV `REVIEWERS` (email by issue number, rate limit)
 ```
 
+- **The site, the language and the page** are what a translator picks: the language
+  from a list (`es`, `pt-br`, `ja`), the page by typing its path (`/pricing/`: an
+  address pasted from the browser works too, a copy's included), and the site, which
+  is `https://www.beekeeperstudio.io` unless a link says `?site=<address>` or an address
+  is typed in the bar, to review a preview or another build. There is no list of pages
+  and no manifest: a page that isn't there says so. The Functions fetch
+  `<site><path>` and `<site>/<lang><path>`, with nothing sent along.
 - **A segment** is one translatable string of a page: the inner html of a text
   element, a bare text node, an attribute (`alt`, `title`...) or a head field. Its
-  **key** is its whitespace-normalized English. Each segment has a **source**
-  (`explicit`, `common`, `generated`, `english`) saying where its current translation
-  lives, which decides how a correction is applied.
-- **Both pages carry the same `data-seg="<id>"`** on the element of every segment.
-  The Worker's `GET /_translations/annotated` makes them (see "The Worker's side").
-  `/api/page` fetches that and makes both pages safe to show: scripts, handlers,
-  `noindex`, analytics and `<noscript>` are removed, a `<base>` is added so styles and
-  images load from the site, and the hover and selected states are injected
-  (`server/sanitize.ts`). The frontend shows each in `<iframe srcdoc
+  **key** is its whitespace-normalized English. The two pages are cut into segments
+  by the Worker's own code (`vendor/translate/`, below), and the nth segment of the copy
+  is taken to be the nth of the English: the copy is the English page with its text
+  replaced. When they don't line up (the English changed since the copy was made) nothing
+  is paired, the translated page says so, and no segment has a translation: one extra
+  paragraph would otherwise put every translation after it on the wrong English
+  (`server/annotate.ts`).
+- **Both pages carry the same `data-seg="<id>"`** on the element of every segment
+  (a bare text node is wrapped in a `<span>`). `/api/page` makes both pages safe to
+  show: scripts, handlers, `noindex`, analytics and `<noscript>` are removed, a
+  `<base>` is added so styles and images load from the site, and the hover and selected
+  states are injected (`server/sanitize.ts`). The frontend shows each in `<iframe srcdoc
   sandbox="allow-same-origin">`: no scripts run in them, and the app reads
   selections and clicks from outside.
 - **A note** is the *whole* new translation of one segment, with the language, page,
-  key, scope, source, what the translator saw, and an optional comment. Notes are
+  key, scope, what the translator saw, and an optional comment. Notes are
   kept in `localStorage` across pages, languages and days until they are submitted.
 - **The editor** (`src/components/ChipEditor.vue`) shows an html translation as text
   with its inline tags as chips. A link or bold can be dragged (or moved with
@@ -48,14 +60,13 @@ browser ──► Cloudflare Pages ──── static frontend (Vue 3, Vite)   
   replaces the text and leaves the chips. Japanese IME input works.
 - **Submitting** (`server/submit.ts`): rate limit, Turnstile, the shape of the
   submission (at most 100 notes, strings under 5,000 characters), then every new
-  translation through the Worker's own lint (`vendor/translate/`) and a check of
-  its own that the tags are nested as in the English (the lint compares tags as a
-  list, so it can't see a link closed before it is opened). Errors are
-  returned per note and nothing is filed while any note has one. Then each page's
-  live data is fetched again: a note whose English has gone is filed as **stale**,
-  and how a correction is applied is worked out from the string's source *now*.
-  One issue is filed per language (more if the body would pass GitHub's limit), with
-  the labels `translation` and `lang:<lang>`.
+  translation through the Worker's own lint (without its glossary, which the app can't
+  read) and a check of its own that the tags are nested as in the English (the lint
+  compares tags as a list, so it can't see a link closed before it is opened). Errors are
+  returned per note and nothing is filed while any note has one. Nothing is checked
+  against the site again: the notes say what the translator saw. One issue is filed per
+  language (more if the body would pass GitHub's limit), with the labels `translation`
+  and `lang:<lang>`.
 - **Privacy.** The repository is public: the issue shows the translator's **name
   only**. Their email is stored in KV under the issue number
   (`{ name, email, issues, at }`) for the owner to get in touch, and is never put in an
@@ -66,58 +77,39 @@ browser ──► Cloudflare Pages ──── static frontend (Vue 3, Vite)   
 Each issue ends with these steps, and a YAML block with one entry per note:
 
 ```yaml
+lang: es
+site: "https://www.beekeeperstudio.io"
 notes:
   - path: /pricing/
     key: "Pay once, use the paid features forever."
     scope: null
-    source: generated
     where: "p, under \"Pricing\""
-    fingerprint: "3f2a…"
     current: "Paga una vez, usa las funciones de pago para siempre."
     new: "Paga una sola vez y usa las funciones de pago para siempre."
     comment: "\"una sola vez\" reads more naturally."
     apply:
-      action: add-explicit
+      action: set-explicit
       file: bin/translations/explicit/es.yml
       entry: { path: /pricing/, en: "Pay once, use the paid features forever.", es: "Paga una sola vez y usa las funciones de pago para siempre." }
 ```
 
 `apply.action` is one of:
 
-| source | action | what to do in `beekeeper-studio/web` |
+| where the string is | action | what to do in `beekeeper-studio/web` |
 |---|---|---|
-| `common` | `set-common` | `common[<scope>][<key>]` in `bin/translations/common/<lang>.json` (changes the string on every page with that include; keep the file sorted by scope) |
-| `explicit` | `replace-explicit` | in `bin/translations/explicit/<lang>.yml`, set the `<lang>` value of the entry whose `path` and `en` match (`path` is the entry that wins, which may be a glob or `*`) |
-| `generated`, `english` | `add-explicit` | append the entry to `bin/translations/explicit/<lang>.yml`, as `bin/translations.mjs pin` does |
+| a shared include (`scope` is set: header, footer...) | `set-common` | `common[<scope>][<key>]` in `bin/translations/common/<lang>.json` (changes the string on every page with that include; keep the file sorted by scope) |
+| anywhere else | `set-explicit` | in `bin/translations/explicit/<lang>.yml`, set the `<lang>` value of the entry whose `path` and `en` match, or append the entry, as `bin/translations.mjs pin` does |
 
-Then: skip notes marked `stale: true` (and say so on the issue), run `node
+The app can't see which of the Worker's layers a translation came from (an explicit
+entry, a common one, or one the model made), so whoever applies a note checks that
+nothing more specific overrides what they change. A note whose English (`key`) is no
+longer on the page is out of date: skip it and say so on the issue. Then run `node
 bin/translations.mjs lint` (it must pass), and open a pull request that closes the
-issue. The next deploy renders the affected pages again. (`worker/annotated-endpoint.patch`
-adds these steps to web's `CLAUDE.md`, "Translated Pages".)
+issue. The next deploy renders the affected pages again.
 
 Everything a stranger typed appears in the issue **inside code spans** (no
 `@mentions`, no `#123` links, no markdown or html of theirs), and the YAML block's fence
 cannot be closed by its own content.
-
-## The Worker's side
-
-The app needs one endpoint the Worker doesn't have yet:
-`GET /_translations/annotated?lang=es&path=/pricing/`. It lives in
-`beekeeper-studio/web`, which this repo does not change, so it is delivered as a patch:
-[`worker/annotated-endpoint.patch`](worker/annotated-endpoint.patch), made against the
-tip of [web#599](https://github.com/beekeeper-studio/web/pull/599) (`91ba7977`, where
-the Worker lives until it merges). See [`worker/README.md`](worker/README.md) to apply
-it. It adds `src/annotate.ts`, the route in `src/api.ts`, 16 unit tests and one
-integration test (all of the Worker's own tests pass with it: 74 unit, 13 integration),
-the notes in web's `CLAUDE.md`, and an `Access-Control-Allow-Origin` header on the
-site's `/assets/*` so fonts load in the review pages.
-
-The ids on both sides are assigned by one walk over each of two parses of the live
-English page, and the copy is that second tree with its translations applied (the
-Worker's own `apply()`). It is **not** the stored copy walked again: a translation that
-moves a link's text into the link would stop its paragraph being a segment and shift
-every id after it. A segment is a distinct (scope, key): the same English twice on a
-page has one id, on every element that holds it, because a correction changes both.
 
 ## Develop
 
@@ -126,27 +118,27 @@ yarn install
 yarn dev            # rebuilds on change, serves dist + the Functions on :8788; needs .dev.vars (.dev.vars.example)
 yarn typecheck      # vue-tsc (app), tsc (server, e2e)
 yarn test           # vitest: shared logic, the Functions with fake services, selection in jsdom
-yarn test:e2e       # Playwright on `wrangler pages dev` with mocks of the Worker, GitHub and Turnstile
-yarn check:vendor   # vendored lint files are as they were synced
+yarn test:e2e       # Playwright on `wrangler pages dev` with mocks of the site, GitHub and Turnstile
+yarn check:vendor   # vendored Worker files are as they were synced
 ```
 
 The browser tests build the app and serve it on `wrangler pages dev` (the real
-Functions, a local KV) against `e2e/mock-services.ts`, which answers as the Worker
-(from `e2e/fixtures/*.json`, made by the Worker's own `render()` and `annotate()`:
-`worker/make-fixtures.ts`), GitHub and Turnstile. They cover sign in, picking a page,
-selecting on the translated side (and double and triple clicks), the chip editor
+Functions, a local KV) against `e2e/mock-services.ts`, which serves a small site (the
+pages in `e2e/fixtures/*.html`, made by the Worker's own `render()`:
+`scripts/make-fixtures.ts`), GitHub and Turnstile. They cover sign in, typing a page and
+a site, selecting on the translated side (and double and triple clicks), the chip editor
 (retyping a link's words, deleting and backspacing them, select all, protection of the
-chips, drag, Alt+arrows, undo, paste, IME), hidden text, every note source and the
-YAML it files, refusal with the reason next to the note, stale notes, GitHub failing
-part way, the rate limit, scroll sync, and that no secret reaches the browser. Chromium
-is `CHROMIUM_PATH`, or `/opt/pw-browsers/chromium` if it exists, or Playwright's own.
+chips, drag, Alt+arrows, undo, paste, IME), hidden text, the YAML each kind of note
+files, refusal with the reason next to the note, a copy that doesn't line up, GitHub
+failing part way, the rate limit, scroll sync, and that no secret reaches the browser.
+Chromium is `CHROMIUM_PATH`, or `/opt/pw-browsers/chromium` if it exists, or Playwright's own.
 
-**The Worker's lint is vendored.** `functions` lint every note with the Worker's
-`lint.ts` (and the `text.ts` it imports), which can't be imported from another
-repository, so `vendor/translate/` holds them byte for byte, with where they came from
-in `SOURCE.json`. `yarn sync:translate [--from <web checkout>] [--ref <ref>]` updates
-them; `yarn check:vendor` fails if they were edited by hand, and with `--upstream` also
-if the Worker's have changed (CI runs that weekly).
+**The Worker's code is vendored.** The Functions cut pages into segments and lint notes
+with the Worker's own files (`segments.ts`, `lint.ts` and what they import), which can't
+be imported from another repository, so `vendor/translate/` holds them byte for byte, with
+where they came from in `SOURCE.json`. `yarn sync:translate [--from <web checkout>]
+[--ref <ref>]` updates them; `yarn check:vendor` fails if they were edited by hand, and
+with `--upstream` also if the Worker's have changed (CI runs that weekly).
 
 ## Setup, once
 
@@ -166,17 +158,18 @@ if the Worker's have changed (CI runs that weekly).
    `wrangler.toml` (`TURNSTILE_SITE_KEY`, public); its secret is `TURNSTILE_SECRET` below.
 4. **Secrets**, with `npx wrangler pages secret put <NAME> --project-name
    translation-review`:
-   - `TRANSLATIONS_TOKEN`: the Worker's bearer token (the same as its own
-     `TRANSLATIONS_TOKEN` secret)
    - `GITHUB_TOKEN`: a fine-grained token limited to **Issues: read and write on
      `beekeeper-studio/web`**, nothing else
    - `TURNSTILE_SECRET`: the widget's secret key
 5. **Variables** in `wrangler.toml`, which is the source of truth (the dashboard shows
-   them but won't edit them): `TRANSLATIONS_URL` (default `https://www.beekeeperstudio.io`)
-   and `GITHUB_REPO` (`beekeeper-studio/web`). To try the app without filing real issues,
-   point `GITHUB_REPO` at a scratch repository (and the token at it) first.
-6. In `beekeeper-studio/web`: apply `worker/annotated-endpoint.patch` and deploy the
-   Worker, or the app can't show any page.
+   them but won't edit them): `TRANSLATIONS_URL` (the default site,
+   `https://www.beekeeperstudio.io`) and `GITHUB_REPO` (`beekeeper-studio/web`). To try
+   the app without filing real issues, point `GITHUB_REPO` at a scratch repository (and the
+   token at it) first.
+
+Nothing is needed in `beekeeper-studio/web`, and no token for it. The copies have to
+exist on the site (once the Worker is deployed there), or be somewhere else: a link with
+`?site=https://pr-599-beekeeper-web.<account>.workers.dev` reviews a preview of it.
 
 The app is `noindex` (`X-Robots-Tag` in `public/_headers`, `robots.txt`) and has no
 analytics. Its Content-Security-Policy is in `public/_headers`: scripts only from the
@@ -193,10 +186,17 @@ app and Turnstile; the pages shown get styles, images and fonts from the site.
   back unless something is filed, so refused notes and GitHub being down cost nothing.
   KV has no atomic update: a lock in the isolate serializes a burst it serves, but two
   isolates can still read the same count, so this stops a person, not a determined script.
-- **A note whose English has gone from the page is filed as stale** (and so are a page's
-  notes if the Worker has no copy of it at that moment). The translator is told how many
-  were, in the answer. Anything about such a note that the browser sent (its scope, its
-  text) can't be checked against the page, so it is only ever shown inside code spans.
+- **Nothing the browser sends is checked against the site**: not that the English is on
+  the page, not the current translation, not the scope. Whatever a note says is shown only
+  inside code spans, and whoever applies it sees if the page has changed.
+- **The site can be any address**, from a link or the bar, and the Functions fetch it (and
+  show it, with its scripts removed, in a sandboxed frame). There is no secret to send it,
+  but it makes the app a fetcher of pages for whoever has the link, and a stranger's page
+  can be reviewed and filed as notes: fine for an app shared with a few translators, not
+  for the open web.
+- **The pages are paired by position** (see above), which holds while the copy is the
+  English page with its text replaced. A copy made from an older build, or one that
+  rewrote the markup, doesn't line up and shows no translations.
 - **A translator's name is on a public issue**, and the browser's queue is theirs: "Not
   you?" asks first, and then deletes the unsent notes, so the next person at the
   browser doesn't send them under their own name.
@@ -206,13 +206,13 @@ app and Turnstile; the pages shown get styles, images and fonts from the site.
 - **If GitHub times out after creating an issue**, the response says the notes are still
   queued, and sending them again files a second issue. GitHub offers no way to make the
   request idempotent.
-- `GET /api/page` is not cached or authenticated (the Worker fetches and parses the live
-  page on each request); put Cloudflare's rate limiting rules in front if that matters.
+- `GET /api/page` is not cached or authenticated (it fetches and parses two pages on each
+  request); put Cloudflare's rate limiting rules in front if that matters.
 - A page with thousands of segments gets slower to hover (about 35 ms a move at 3,000; at
   600 it is not measurable).
-- Not run against the real services: Turnstile, GitHub and the deployed Worker are mocked
-  in every test, and the real pages of beekeeperstudio.io were not available, so how they
-  look with their scripts removed is unseen.
+- Not run against the real services: Turnstile and GitHub are mocked in every test, and
+  the pages are fixtures made by the Worker's code, not the real pages of
+  beekeeperstudio.io, so how those look with their scripts removed is unseen.
 
 ## Differences from the spec
 
@@ -220,13 +220,20 @@ app and Turnstile; the pages shown get styles, images and fonts from the site.
   `apps/translation-review/` of `beekeeper-studio/web`; nothing here changes that
   repository (so no `exclude` in its `_config.yml`). It deploys on pushes to `main`
   (this repo's default branch), not on changes to `workers/translate/src/**`.
-- **The Worker's lint is vendored, not imported** (see above), and **the Worker
-  endpoint is a patch**, because of that split.
+- **The Worker's code is vendored, not imported** (see above), and **the app doesn't
+  call the Worker at all**: the spec had it read the manifest and a new `annotated`
+  endpoint; it reads the site's pages instead (no token, no patch, no page list), and cuts
+  them into segments itself.
+- **No source, no stale notes.** The notes don't say whether a translation is explicit,
+  common or generated (the app can't tell), so `apply` is `set-common` for a shared
+  include and `set-explicit` for the rest, and the applier checks for overrides. Notes
+  aren't checked against the site when they are submitted, so there is no `stale`, no
+  `fingerprint`, and no `current_now`.
+- **The site is a parameter**, to review a preview or another build.
 - **The issue's wording**: the translator's English, "Now", "New", comment and name are
   in code spans (a public repository, text from strangers); "Lint warnings" appears
-  only when there are some; `apply` gets an `action` field, and a note whose current
-  translation changed since it was written has `current_now`. `where` is the Worker's
-  own (`p, under "Pricing"`).
+  only when there are some; `apply` gets an `action` field, and the issue says which
+  site the pages were on. `where` is the Worker's own (`p, under "Pricing"`).
 - **Segments are distinct (scope, key)**, so one id covers repeated English; head fields
   have `kind: "head"`.
 - **A note must change something**, except for a string the copy left in English (a

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { defineConfig } from "@playwright/test";
 
 // The browser tests: the built app on `wrangler pages dev` (the real Functions,
-// with a local KV) against mocks of the translation Worker, GitHub and
+// with a local KV) against mocks of the site, GitHub and
 // Turnstile (e2e/mock-services.ts). Chromium: CHROMIUM_PATH, else the one a
 // sandbox may ship at /opt/pw-browsers, else Playwright's own (`npx playwright
 // install chromium`, as CI does).
@@ -14,7 +14,6 @@ const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(SANDBOX_CHROMIUM
 
 const bindings = [
   `TRANSLATIONS_URL=${mock}`,
-  "TRANSLATIONS_TOKEN=e2e-token",
   `GITHUB_API_URL=${mock}/github`,
   "GITHUB_REPO=beekeeper-studio/web",
   "GITHUB_TOKEN=gh-e2e-token",

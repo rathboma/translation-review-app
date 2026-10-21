@@ -2,53 +2,48 @@
 
 exports[`issue body (snapshot) 2`] = `
 "Translation notes from \`María López\` for **es** (Español), 3 notes on 2 pages.
-Submitted with translate.beekeeperstudio.io.
+Submitted with translate.beekeeperstudio.io, from the pages on \`https://www.beekeeperstudio.io\`.
 
-### 1. \`/pricing/\` · \`p, under "Pricing"\` · generated
+### 1. \`/pricing/\` · \`p, under "Pricing"\`
 English: \`Pay once, use the paid features forever.\`  
 Now: \`Paga una vez, usa las funciones de pago para siempre.\`  
 New: \`Paga una sola vez y usa las funciones de pago para siempre.\`  
 Comment: \`"una sola vez" reads more naturally.\`
 
-### 2. \`footer\` (every page) · common
+### 2. \`footer\` (every page) · \`/\`
 English: \`Blog\`  
 Now: \`Blog\`  
 New: \`Blog técnico\`  
 This text is in the site footer: the change applies on every page.
 
-### 3. \`/pricing/\` · \`p, under "Pricing"\` · explicit
+### 3. \`/pricing/\` · \`p, under "Pricing"\`
 English: \`Read <a href="/docs">the docs</a>\`  
 Now: \`Lee <a href="/docs">la documentación</a>\`  
 New: \`Consulta <a href="/docs">los documentos</a>\`  
-Lint warnings: \`glossary: "Docs" is usually "Documentación"\`  
-Heads up: the current translation has changed since this note was written, it is now \`otra\`.  
-**Stale:** this English text is no longer on the page. Skip this note.
+Lint warnings: \`glossary: "Docs" is usually "Documentación"\`
 
 <details><summary>Machine-readable notes</summary>
 
 \`\`\`yaml
 lang: es
+site: "https://www.beekeeperstudio.io"
 submitted: 2026-10-21T10:14:00Z
 notes:
   - path: /pricing/
     key: "Pay once, use the paid features forever."
     scope: null
-    source: generated
     where: "p, under \\"Pricing\\""
-    fingerprint: "3f2a9c"
     current: "Paga una vez, usa las funciones de pago para siempre."
     new: "Paga una sola vez y usa las funciones de pago para siempre."
     comment: "\\"una sola vez\\" reads more naturally."
     apply:
-      action: add-explicit
+      action: set-explicit
       file: bin/translations/explicit/es.yml
       entry: { path: /pricing/, en: "Pay once, use the paid features forever.", es: "Paga una sola vez y usa las funciones de pago para siempre." }
   - path: /
     key: "Blog"
     scope: footer
-    source: common
     where: "a, under \\"Links\\""
-    fingerprint: "3f2a9c"
     current: "Blog"
     new: "Blog técnico"
     apply:
@@ -58,17 +53,13 @@ notes:
   - path: /pricing/
     key: "Read <a href=\\"/docs\\">the docs</a>"
     scope: null
-    source: explicit
     where: "p, under \\"Pricing\\""
-    fingerprint: "3f2a9c"
     current: "Lee <a href=\\"/docs\\">la documentación</a>"
     new: "Consulta <a href=\\"/docs\\">los documentos</a>"
-    current_now: "otra"
     warnings:
       - "glossary: \\"Docs\\" is usually \\"Documentación\\""
-    stale: true
     apply:
-      action: replace-explicit
+      action: set-explicit
       file: bin/translations/explicit/es.yml
       entry: { path: /pricing/, en: "Read <a href=\\"/docs\\">the docs</a>", es: "Consulta <a href=\\"/docs\\">los documentos</a>" }
 \`\`\`
@@ -80,11 +71,12 @@ notes:
 
 1. Read the YAML block above. For each note, apply its \`apply\` to the named file in this repository:
    - \`set-common\`: set \`common[<scope>][<key>]\` in the JSON file. It changes that string on every page with the include. Keep the file sorted by scope.
-   - \`replace-explicit\`: in the YAML file, set the language's value of the entry whose \`path\` and \`en\` match.
-   - \`add-explicit\`: append the entry to the YAML file, as \`node bin/translations.mjs pin\` does.
+   - \`set-explicit\`: in the YAML file, set the language's value of the entry whose \`path\` and \`en\` match, or append the entry if there is none, as \`node bin/translations.mjs pin\` does.
+
+   The notes were written against the live site, which doesn't say where a translation comes from: if something more specific overrides the change (an explicit entry for the page, say, over a common one), change that instead.
 
    Keep \`explicit/<lang>.yml\` in its existing format (\`yaml.dump\` with \`forceQuotes\`, as \`pin\` does).
-2. Skip notes marked \`stale: true\`, and say so on this issue.
+2. A note whose English (\`key\`) is no longer on the page is out of date: skip it, and say so on this issue.
 3. Run \`node bin/translations.mjs lint\`: it must pass.
-4. Commit and open a pull request that closes this issue. The next deploy renders the affected pages again (their fingerprints change)."
+4. Commit and open a pull request that closes this issue. The next deploy renders the affected pages again."
 `;

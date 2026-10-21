@@ -2,7 +2,7 @@ import { beforeEach, afterEach, test, vi } from "vitest";
 import assert from "node:assert/strict";
 import { submitHandler } from "../server/submit.ts";
 import { MAX_PER_HOUR } from "../server/ratelimit.ts";
-import { annotated, env, post, segment, submission, world, type World } from "./server-helpers.ts";
+import { env, post, SITE, submission, world, type World } from "./server-helpers.ts";
 import { machineNotes, note } from "./helpers.ts";
 
 const NOW = new Date("2026-10-21T10:14:00Z");
@@ -10,15 +10,7 @@ const send = (e: ReturnType<typeof env>, body: unknown, headers?: Record<string,
 
 let w: World;
 beforeEach(() => {
-  w = world({
-    "es /pricing/": annotated("es", "/pricing/", [
-      segment(),
-      segment({ id: "s2", key: "Blog", scope: "footer", source: "common", where: 'a, under "Links"', translation: "Blog" }),
-      segment({ id: "s3", key: "Get <a href=\"/get\">Beekeeper Studio</a> now", source: "explicit", entryPath: "/pricing/**", translation: "Obtén <a href=\"/get\">Beekeeper Studio</a> ya" }),
-    ]),
-    "es /": annotated("es", "/", [segment({ id: "s1", key: "Welcome", translation: "Bienvenido", where: "h1" })]),
-    "ja /pricing/": annotated("ja", "/pricing/", [segment({ id: "s1", key: "Pay once.", translation: "一度だけ支払う。" })]),
-  });
+  w = world();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -61,11 +53,10 @@ test("the email is stored by issue number and never reaches GitHub", async () =>
   assert.deepEqual(JSON.parse(e.REVIEWERS.data.get("issue:101")!), record);
 });
 
-test("the Worker is called with its token, the human check is verified with the secret and the visitor's address", async () => {
+test("the human check is verified with the secret and the visitor's address, and no site is fetched", async () => {
   await send(env(), submission([note()]));
-  assert.ok(w.worker.calls.length >= 2);
-  assert.ok(w.worker.calls.every((c) => c.authorization === "Bearer worker-token"));
   assert.deepEqual(w.turnstile.calls, [{ secret: "ts-secret", response: "token-1", remoteip: "203.0.113.7" }]);
+  assert.equal(w.site.calls.length, 0, "the notes say what the translator saw: nothing is checked against the site");
 });
 
 test("a failed human check files nothing and checks nothing else", async () => {
@@ -73,7 +64,6 @@ test("a failed human check files nothing and checks nothing else", async () => {
   const response = await send(env(), submission([note()]));
   assert.equal(response.status, 403);
   assert.equal(w.github.calls.length, 0);
-  assert.equal(w.worker.calls.length, 0);
 });
 
 test("malformed submissions are refused with a reason", async () => {
@@ -95,17 +85,16 @@ test("at most 100 notes", async () => {
   assert.equal(w.github.calls.length, 0);
 });
 
-test("a language or page that isn't translated is refused, by note", async () => {
-  const response = await send(env(), submission([note({ id: "a", lang: "fr" }), note({ id: "b", path: "/nope/" }), note({ id: "c", key: "Ok" })]));
+test("a language that isn't translated is refused, by note", async () => {
+  const response = await send(env(), submission([note({ id: "a", lang: "fr" }), note({ id: "c", key: "Ok" })]));
   assert.equal(response.status, 422);
   const body = await json(response);
-  assert.deepEqual(body.notes.map((n: any) => n.id), ["a", "b"]);
+  assert.deepEqual(body.notes.map((n: any) => n.id), ["a"]);
   assert.match(body.notes[0].errors[0], /fr is not a translated language/);
-  assert.match(body.notes[1].errors[0], /not one of the translated pages/);
 });
 
 test("a broken translation is refused with the reason next to its note, and nothing is filed", async () => {
-  const lostLink = note({ id: "link", key: "Get <a href=\"/get\">Beekeeper Studio</a> now", source: "explicit", current: "Obtén <a href=\"/get\">Beekeeper Studio</a> ya", new: "Obtén Beekeeper Studio ya" });
+  const lostLink = note({ id: "link", key: "Get <a href=\"/get\">Beekeeper Studio</a> now", current: "Obtén <a href=\"/get\">Beekeeper Studio</a> ya", new: "Obtén Beekeeper Studio ya" });
   const price = note({ id: "price", key: "Only $99 a year", current: "Solo $99 al año", new: "Solo $89 al año" });
   const fine = note({ id: "fine" });
   const response = await send(env(), submission([lostLink, price, fine]));
@@ -117,62 +106,46 @@ test("a broken translation is refused with the reason next to its note, and noth
   assert.match(byId.price.errors.join(" "), /numbers missing from the translation: 99/);
   assert.equal(byId.fine, undefined);
   assert.equal(w.github.calls.length, 0, "nothing is filed while any note has an error");
-  assert.equal(w.worker.calls.filter((c) => c.url.pathname.endsWith("annotated")).length, 0, "no page was fetched either");
-});
-
-test("the Worker's glossary and keep list are enforced", async () => {
-  const response = await send(env(), submission([note({ key: "Beekeeper Studio is great", current: "Beekeeper Studio es genial", new: "El estudio de abejas es genial" })]));
-  assert.equal(response.status, 422);
-  assert.match((await json(response)).notes[0].errors[0], /"Beekeeper Studio" must stay as it is/);
 });
 
 test("lint warnings go into the issue, and don't stop it", async () => {
-  const response = await send(env(), submission([note({ id: "w", key: "Download", scope: null, current: "Descargar", new: "Bajar", where: "a" })]));
+  // Left in English, which the lint warns about.
+  const response = await send(env(), submission([note({ id: "w", key: "Pay once, use the paid features forever.", current: "Paga una vez.", new: "Pay once, use the paid features forever." })]));
   const body = await json(response);
   assert.equal(body.ok, true, JSON.stringify(body));
   const issue = w.github.calls[0].body.body;
-  assert.match(issue, /Lint warnings: `glossary: "Download" is usually "Descarga"`/);
-  assert.deepEqual(machineNotes(issue).notes[0].warnings, ['glossary: "Download" is usually "Descarga"']);
+  assert.match(issue, /Lint warnings: `identical to the English`/);
+  assert.deepEqual(machineNotes(issue).notes[0].warnings, ["identical to the English"]);
 });
 
-test("a note whose English has gone from the page is filed as stale", async () => {
-  const response = await send(env(), submission([note({ id: "a" }), note({ id: "gone", key: "Pay once, use the paid features for one year.", current: "Paga una vez.", new: "Paga una sola vez." })]));
-  assert.equal((await json(response)).ok, true);
-  const [first, second] = machineNotes(w.github.calls[0].body.body).notes;
-  assert.equal(first.stale, undefined);
-  assert.equal(second.stale, true);
-  assert.match(w.github.calls[0].body.body, /\*\*Stale:\*\* this English text is no longer on the page/);
-});
-
-test("a page that has lost its copy makes its notes stale too", async () => {
-  delete w.worker.pages["es /"];
-  const response = await send(env(), submission([note({ id: "a", path: "/", key: "Welcome", current: "Bienvenido", new: "Hola" })]));
-  assert.equal((await json(response)).ok, true);
-  const [only] = machineNotes(w.github.calls[0].body.body).notes;
-  assert.equal(only.stale, true);
-  assert.equal(only.fingerprint, null);
-});
-
-test("how a note is applied comes from where the string's translation is now, not from what the browser said", async () => {
-  // The browser thought it was a generated translation: the page has it from an explicit glob entry now.
+test("a note on a shared include is applied to the language's common file, any other on the page's explicit entries", async () => {
   const response = await send(env(), submission([
-    note({ id: "a", key: "Get <a href=\"/get\">Beekeeper Studio</a> now", source: "generated", current: "Obtén <a href=\"/get\">Beekeeper Studio</a> ya", new: "Consigue <a href=\"/get\">Beekeeper Studio</a> ya" }),
-    note({ id: "b", key: "Blog", scope: "footer", source: "generated", path: "/pricing/", current: "Blog", new: "Blog técnico" }),
+    note({ id: "a", key: "Get <a href=\"/get\">Beekeeper Studio</a> now", current: "Obtén <a href=\"/get\">Beekeeper Studio</a> ya", new: "Consigue <a href=\"/get\">Beekeeper Studio</a> ya" }),
+    note({ id: "b", key: "Blog", scope: "footer", path: "/pricing/", current: "Blog", new: "Blog técnico" }),
   ]));
   assert.equal((await json(response)).ok, true);
   const [a, b] = machineNotes(w.github.calls[0].body.body).notes;
-  assert.equal(a.source, "explicit");
-  assert.deepEqual(a.apply, { action: "replace-explicit", file: "bin/translations/explicit/es.yml", entry: { path: "/pricing/**", en: "Get <a href=\"/get\">Beekeeper Studio</a> now", es: "Consigue <a href=\"/get\">Beekeeper Studio</a> ya" } });
+  assert.deepEqual(a.apply, { action: "set-explicit", file: "bin/translations/explicit/es.yml", entry: { path: "/pricing/", en: "Get <a href=\"/get\">Beekeeper Studio</a> now", es: "Consigue <a href=\"/get\">Beekeeper Studio</a> ya" } });
   assert.deepEqual(b.apply, { action: "set-common", file: "bin/translations/common/es.json", set: ["footer", "Blog", "Blog técnico"] });
-  assert.equal(b.fingerprint, "fp-es-pricing");
 });
 
-test("a translation that changed since the note was written is flagged", async () => {
-  const response = await send(env(), submission([note({ id: "a", current: "Paga una vez (la de ayer).", new: "Paga una sola vez." })]));
-  assert.equal((await json(response)).ok, true);
-  const [only] = machineNotes(w.github.calls[0].body.body).notes;
-  assert.equal(only.current_now, "Paga una vez, usa las funciones de pago para siempre.");
-  assert.match(w.github.calls[0].body.body, /Heads up: the current translation has changed/);
+test("the site the notes were written on is in the issue, as the origin, and is the default when not given", async () => {
+  await send(env(), submission([note({ id: "a" })]));
+  assert.equal(machineNotes(w.github.calls[0].body.body).site, SITE);
+  assert.match(w.github.calls[0].body.body, new RegExp(`from the pages on \`${SITE}\``));
+  await send(env(), submission([note({ id: "b" })], { site: "https://pr-9-beekeeper-web.example.workers.dev/pricing/?x=1" }), { "cf-connecting-ip": "198.51.100.4" });
+  assert.equal(machineNotes(w.github.calls[1].body.body).site, "https://pr-9-beekeeper-web.example.workers.dev");
+});
+
+test("a site that is not a web address is refused, and costs nothing", async () => {
+  const e = env();
+  for (const site of ["javascript:alert(1)", "example.com", "ftp://x"]) {
+    const response = await send(e, submission([note()], { site }));
+    assert.equal(response.status, 422, site);
+    assert.match((await json(response)).error, /not a web address/);
+  }
+  assert.equal(w.github.calls.length, 0);
+  assert.ok(![...e.REVIEWERS.data.keys()].some((k) => k.startsWith("rate:")));
 });
 
 test("five submissions an hour per address, the sixth is told when to come back", async () => {
@@ -210,16 +183,6 @@ test("refused submissions don't use up the allowance, so fixing a translation is
   assert.equal((await send(e, submission([note()]))).status, 200);
 });
 
-test("when the translation service is down nothing is filed, and the allowance is untouched", async () => {
-  w.worker.down = true;
-  const e = env();
-  const response = await send(e, submission([note()]));
-  assert.equal(response.status, 502);
-  assert.match((await json(response)).error, /still in your queue/);
-  assert.equal(w.github.calls.length, 0);
-  assert.ok(![...e.REVIEWERS.data.keys()].some((k) => k.startsWith("rate:")));
-});
-
 test("when GitHub fails part way, the response says which notes were filed", async () => {
   w.github.fail = (call) => call === 2;
   const e = env();
@@ -248,9 +211,7 @@ test("GitHub failing on the first issue leaves everything in the queue", async (
 
 test("a long submission is split into several issues of one language", async () => {
   const long = "palabra ".repeat(500).trim();
-  const segments = Array.from({ length: 20 }, (_, i) => segment({ id: `s${i}`, key: `Key ${i}`, translation: long }));
-  w.worker.pages["es /pricing/"] = annotated("es", "/pricing/", segments);
-  const notes = segments.map((s, i) => note({ id: `n${i}`, key: s.key, current: long, new: `${long} ${i}` }));
+  const notes = Array.from({ length: 20 }, (_, i) => note({ id: `n${i}`, key: `Key ${i}`, current: long, new: `${long} ${i}` }));
   const response = await send(env(), submission(notes));
   const body = await json(response);
   assert.equal(body.ok, true, JSON.stringify(body));
@@ -263,7 +224,6 @@ test("a long submission is split into several issues of one language", async () 
 
 test("a note too big to file is refused by id", async () => {
   const text = "\\".repeat(4999);
-  w.worker.pages["es /pricing/"] = annotated("es", "/pricing/", [segment({ key: text, translation: text })]);
   const big = note({ id: "big", key: text, current: text, new: `${text}"`, comment: text, where: text });
   const response = await send(env(), submission([big]));
   assert.equal(response.status, 422);
