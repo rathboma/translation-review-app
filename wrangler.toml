@@ -13,7 +13,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 # The site whose pages are reviewed unless a link or the translator names another
 # (its English pages, and the copies under /es/, /pt-br/ and /ja/).
-TRANSLATIONS_URL = "https://pr-599-beekeeper-web.matthew-678.workers.dev"
+TRANSLATIONS_URL = "https://beekeeper-web.matthew-678.workers.dev"
 # Where issues are filed.
 GITHUB_REPO = "beekeeper-studio/web"
 # Public: the Turnstile widget's site key (its secret is TURNSTILE_SECRET).
