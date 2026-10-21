@@ -1,3 +1,10 @@
+> **Moved.** This app now lives in [beekeeper-studio/web](https://github.com/beekeeper-studio/web)
+> at `/admin/translate/` of the site itself (`pages/admin/translate.html`,
+> `_javascript/src/vue/apps/translation-review/`, `workers/translate/src/review/`): see
+> "Translation Review" in its `CLAUDE.md`. On the site's own origin the pages' fonts, images
+> and styles load without CORS, and the Pages Functions here are not needed. This repository
+> is kept for its history only.
+
 # translation-review
 
 **translate.beekeeperstudio.io**: a human translator reads the machine-translated
